@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>퀴즈 관리자</title>
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+</head>
+<body>
+
+<!-- ===== 로그인 ===== -->
+<div id="view-login" class="view">
+  <div class="login-box card">
+    <h2>관리자 로그인</h2>
+    <input type="password" id="login-password" placeholder="비밀번호">
+    <button class="btn-primary btn-block" style="margin-top:12px;" id="btn-login">로그인</button>
+    <div class="error-text hidden" id="login-error">비밀번호가 틀렸어요.</div>
+  </div>
+</div>
+
+<!-- ===== 메인 패널 ===== -->
+<div id="view-main" class="view hidden">
+  <div class="container">
+    <h1 class="page-title">퀴즈 관리자</h1>
+
+    <!-- 사이트 설정 -->
+    <div class="card">
+      <h3 style="margin-top:0;">사이트 배경색</h3>
+      <div class="color-row">
+        <label>색상 1 <input type="color" id="bg-color-1"></label>
+        <label>색상 2 <input type="color" id="bg-color-2"></label>
+        <button class="btn-gold btn-sm" id="btn-save-colors">배경색 저장</button>
+        <button class="btn-ghost btn-sm" id="btn-backup">전체 백업 다운로드</button>
+      </div>
+    </div>
+
+    <!-- 세트 목록 -->
+    <div class="top-actions" style="margin-top:26px;">
+      <h3 style="margin:0;">퀴즈 세트</h3>
+      <button class="btn-primary" id="btn-new-set">+ 새 세트 만들기</button>
+    </div>
+    <div id="set-list" class="set-list"></div>
+
+    <!-- 세트 에디터 -->
+    <div id="editor" class="card hidden" style="margin-top:24px;">
+      <div class="top-actions">
+        <h3 style="margin:0;" id="editor-title-label">새 세트</h3>
+        <div>
+          <button class="btn-ghost btn-sm" id="btn-cancel-edit">취소</button>
+          <button class="btn-mint btn-sm" id="btn-save-set">저장</button>
+        </div>
+      </div>
+      <label class="field-label">세트 제목</label>
+      <input type="text" id="set-title" placeholder="예: 1단원 형성평가">
+
+      <div id="questions-wrap"></div>
+
+      <button class="btn-ghost btn-block" style="margin-top:16px;" id="btn-add-question">+ 문제 추가</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let sessionPassword = "";
+let sets = [];
+let editingId = null;       // 수정 중인 세트 id (null이면 새 세트)
+let editingQuestions = [];  // 에디터에서 편집 중인 문제 배열
+
+// ---------- 로그인 ----------
+document.getElementById("btn-login").addEventListener("click", login);
+document.getElementById("login-password").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+
+async function login() {
+  const pw = document.getElementById("login-password").value;
+  const res = await apiPost("login", { password: pw });
+  if (res.ok) {
+    sessionPassword = pw;
+    document.getElementById("view-login").classList.add("hidden");
+    document.getElementById("view-main").classList.remove("hidden");
+    await applyBackgroundColors();
+    await loadSettings();
+    await loadSets();
+  } else {
+    document.getElementById("login-error").classList.remove("hidden");
+  }
+}
+
+// ---------- 설정(배경색) ----------
+async function loadSettings() {
+  const res = await apiGet("settings");
+  if (res.ok) {
+    document.getElementById("bg-color-1").value = res.settings.bgColor1 || "#F3EEFF";
+    document.getElementById("bg-color-2").value = res.settings.bgColor2 || "#EAF6FF";
+  }
+}
+document.getElementById("btn-save-colors").addEventListener("click", async () => {
+  const bgColor1 = document.getElementById("bg-color-1").value;
+  const bgColor2 = document.getElementById("bg-color-2").value;
+  await apiPost("saveSettings", { password: sessionPassword, bgColor1, bgColor2 });
+  localStorage.removeItem("quiz_bgColors");
+  await applyBackgroundColors();
+  alert("배경색이 저장됐어요.");
+});
+
+document.getElementById("btn-backup").addEventListener("click", async () => {
+  const res = await apiGet("backupAll");
+  if (!res.ok) { alert("백업 실패"); return; }
+  const blob = new Blob([JSON.stringify(res.sets, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `quiz_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ---------- 세트 목록 ----------
+async function loadSets() {
+  const res = await apiGet("sets");
+  if (!res.ok) { alert("세트 목록을 불러오지 못했어요."); return; }
+  sets = res.sets;
+  renderSetList();
+}
+
+function renderSetList() {
+  const wrap = document.getElementById("set-list");
+  if (sets.length === 0) { wrap.innerHTML = "<p>아직 등록된 세트가 없어요.</p>"; return; }
+  wrap.innerHTML = "";
+  sets.forEach((s, i) => {
+    const el = document.createElement("div");
+    el.className = "set-card";
+    el.innerHTML = `
+      <div>
+        <div class="set-title">${escapeHtml(s.title)}</div>
+        <div class="set-meta">사용 ${s.useCount || 0}회 ${s.lastUsedAt ? "· 마지막 " + fmtDate(s.lastUsedAt) : ""}</div>
+      </div>
+      <div class="set-actions">
+        <button class="btn-ghost" data-act="up">↑</button>
+        <button class="btn-ghost" data-act="down">↓</button>
+        <button class="btn-ghost" data-act="edit">편집</button>
+        <button class="btn-ghost" data-act="dup">복제</button>
+        <button class="btn-danger" data-act="del">삭제</button>
+      </div>
+    `;
+    el.querySelector('[data-act=up]').addEventListener("click", (e) => { e.stopPropagation(); moveSet(i, -1); });
+    el.querySelector('[data-act=down]').addEventListener("click", (e) => { e.stopPropagation(); moveSet(i, 1); });
+    el.querySelector('[data-act=edit]').addEventListener("click", (e) => { e.stopPropagation(); openEditor(s.id); });
+    el.querySelector('[data-act=dup]').addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await apiPost("duplicateSet", { password: sessionPassword, id: s.id });
+      loadSets();
+    });
+    el.querySelector('[data-act=del]').addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm(`"${s.title}" 세트를 삭제할까요? 되돌릴 수 없어요.`)) return;
+      await apiPost("deleteSet", { password: sessionPassword, id: s.id });
+      loadSets();
+    });
+    wrap.appendChild(el);
+  });
+}
+
+async function moveSet(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= sets.length) return;
+  [sets[i], sets[j]] = [sets[j], sets[i]];
+  renderSetList();
+  await apiPost("reorderSets", { password: sessionPassword, order: sets.map(s => s.id) });
+}
+
+// ---------- 세트 에디터 ----------
+document.getElementById("btn-new-set").addEventListener("click", () => openEditor(null));
+document.getElementById("btn-cancel-edit").addEventListener("click", closeEditor);
+document.getElementById("btn-add-question").addEventListener("click", () => {
+  editingQuestions.push({ type: "mcq", question: "", image: "", choices: ["", ""], correctIndex: 0, answer: "", altAnswers: "", explanation: "" });
+  renderEditor();
+});
+document.getElementById("btn-save-set").addEventListener("click", saveSet);
+
+async function openEditor(id) {
+  editingId = id;
+  if (id) {
+    const res = await apiGet("set", { id });
+    if (!res.ok) { alert("불러오기 실패"); return; }
+    document.getElementById("set-title").value = res.set.title;
+    editingQuestions = res.set.questions.map(q => ({
+      ...q,
+      correctIndex: q.type === "mcq" ? (q.choices || []).indexOf(q.answer) : 0
+    }));
+    document.getElementById("editor-title-label").innerText = "세트 편집";
+  } else {
+    document.getElementById("set-title").value = "";
+    editingQuestions = [];
+    document.getElementById("editor-title-label").innerText = "새 세트";
+  }
+  renderEditor();
+  document.getElementById("editor").classList.remove("hidden");
+  document.getElementById("editor").scrollIntoView({ behavior: "smooth" });
+}
+
+function closeEditor() {
+  document.getElementById("editor").classList.add("hidden");
+  editingId = null;
+  editingQuestions = [];
+}
+
+function renderEditor() {
+  const wrap = document.getElementById("questions-wrap");
+  wrap.innerHTML = "";
+  editingQuestions.forEach((q, idx) => {
+    const item = document.createElement("div");
+    item.className = "q-editor-item";
+
+    let inner = `
+      <button class="btn-danger btn-sm" style="position:absolute; top:12px; right:12px;" data-remove-q="${idx}">삭제</button>
+      <select data-qidx="${idx}" data-field="type" style="width:auto; display:inline-block; margin-bottom:10px;">
+        <option value="mcq" ${q.type === "mcq" ? "selected" : ""}>객관식</option>
+        <option value="short" ${q.type === "short" ? "selected" : ""}>주관식</option>
+        <option value="ox" ${q.type === "ox" ? "selected" : ""}>OX</option>
+      </select>
+      <label class="field-label">문제</label>
+      <textarea data-qidx="${idx}" data-field="question" placeholder="문제를 입력하세요">${escapeHtml(q.question)}</textarea>
+
+      <label class="field-label">이미지 (선택)</label>
+      <input type="file" accept="image/*" data-qidx="${idx}" data-field="image-upload">
+      ${q.image ? `<img class="img-preview" src="${q.image}">` : ""}
+    `;
+
+    if (q.type === "mcq") {
+      inner += `<label class="field-label">보기 (동그라미 = 정답)</label>`;
+      q.choices.forEach((c, cidx) => {
+        inner += `
+          <div class="choice-row">
+            <input type="radio" name="correct-${idx}" data-qidx="${idx}" data-field="mcq-correct" data-cidx="${cidx}" ${q.correctIndex === cidx ? "checked" : ""}>
+            <input type="text" data-qidx="${idx}" data-field="choice" data-cidx="${cidx}" value="${escapeHtml(c)}" placeholder="보기 ${cidx + 1}">
+            <button class="btn-ghost btn-sm" data-remove-choice="${idx}:${cidx}">삭제</button>
+          </div>
+        `;
+      });
+      inner += `<button class="btn-ghost btn-sm" data-add-choice="${idx}">+ 보기 추가</button>`;
+    } else if (q.type === "ox") {
+      inner += `
+        <label class="field-label">정답</label>
+        <div class="choice-row">
+          <label><input type="radio" name="ox-${idx}" data-qidx="${idx}" data-field="ox-answer" value="O" ${q.answer === "O" ? "checked" : ""}> O</label>
+          <label style="margin-left:16px;"><input type="radio" name="ox-${idx}" data-qidx="${idx}" data-field="ox-answer" value="X" ${q.answer === "X" ? "checked" : ""}> X</label>
+        </div>
+      `;
+    } else {
+      inner += `
+        <label class="field-label">정답</label>
+        <input type="text" data-qidx="${idx}" data-field="answer" value="${escapeHtml(q.answer)}" placeholder="모범 답안">
+        <label class="field-label">추가로 인정할 답안 (선택)</label>
+        <input type="text" data-qidx="${idx}" data-field="altAnswers" value="${escapeHtml(q.altAnswers)}" placeholder="예: 삼투압, 삼투현상">
+      `;
+    }
+
+    inner += `
+      <label class="field-label">해설 (선택)</label>
+      <textarea data-qidx="${idx}" data-field="explanation" placeholder="정답 화면에 함께 보여줄 해설">${escapeHtml(q.explanation || "")}</textarea>
+    `;
+
+    item.innerHTML = inner;
+    wrap.appendChild(item);
+  });
+}
+
+// 입력값 변경 반영 (구조 변경 없는 것들)
+document.getElementById("questions-wrap").addEventListener("input", (e) => {
+  const idx = e.target.dataset.qidx;
+  const field = e.target.dataset.field;
+  if (idx === undefined || !field) return;
+  const q = editingQuestions[idx];
+  if (field === "choice") {
+    q.choices[e.target.dataset.cidx] = e.target.value;
+  } else if (field === "question" || field === "answer" || field === "altAnswers" || field === "explanation") {
+    q[field] = e.target.value;
+  }
+});
+
+// 변경(select, radio, 파일) 반영
+document.getElementById("questions-wrap").addEventListener("change", async (e) => {
+  const idx = e.target.dataset.qidx;
+  const field = e.target.dataset.field;
+  if (idx === undefined || !field) return;
+  const q = editingQuestions[idx];
+
+  if (field === "type") { q.type = e.target.value; renderEditor(); }
+  if (field === "mcq-correct") { q.correctIndex = Number(e.target.dataset.cidx); }
+  if (field === "ox-answer") { q.answer = e.target.value; }
+  if (field === "image-upload") {
+    const file = e.target.files[0];
+    if (!file) return;
+    const base64 = await fileToBase64(file);
+    const res = await apiPost("uploadImage", { password: sessionPassword, filename: file.name, mimeType: file.type, base64 });
+    if (res.ok) { q.image = res.url; renderEditor(); }
+    else alert("이미지 업로드 실패: " + res.error);
+  }
+});
+
+// 문제/보기 삭제, 보기 추가 (클릭 위임)
+document.getElementById("questions-wrap").addEventListener("click", (e) => {
+  if (e.target.dataset.removeQ !== undefined) {
+    editingQuestions.splice(Number(e.target.dataset.removeQ), 1);
+    renderEditor();
+  }
+  if (e.target.dataset.addChoice !== undefined) {
+    editingQuestions[Number(e.target.dataset.addChoice)].choices.push("");
+    renderEditor();
+  }
+  if (e.target.dataset.removeChoice !== undefined) {
+    const [qidx, cidx] = e.target.dataset.removeChoice.split(":").map(Number);
+    editingQuestions[qidx].choices.splice(cidx, 1);
+    if (editingQuestions[qidx].correctIndex >= editingQuestions[qidx].choices.length) editingQuestions[qidx].correctIndex = 0;
+    renderEditor();
+  }
+});
+
+async function saveSet() {
+  const title = document.getElementById("set-title").value.trim();
+  if (!title) { alert("세트 제목을 입력해주세요."); return; }
+  if (editingQuestions.length === 0) { alert("문제를 1개 이상 추가해주세요."); return; }
+
+  const questions = editingQuestions.map(q => {
+    const out = { type: q.type, question: q.question, image: q.image || "", explanation: q.explanation || "" };
+    if (q.type === "mcq") {
+      out.choices = q.choices;
+      out.answer = q.choices[q.correctIndex] || "";
+    } else if (q.type === "ox") {
+      out.answer = q.answer || "O";
+    } else {
+      out.answer = q.answer || "";
+      out.altAnswers = q.altAnswers || "";
+    }
+    return out;
+  });
+
+  const res = await apiPost("saveSet", { password: sessionPassword, set: { id: editingId, title, questions } });
+  if (res.ok) {
+    closeEditor();
+    loadSets();
+  } else {
+    alert("저장 실패: " + res.error);
+  }
+}
+
+// ---------- 유틸 ----------
+function escapeHtml(str) {
+  const d = document.createElement("div");
+  d.innerText = str == null ? "" : String(str);
+  return d.innerHTML;
+}
+function fmtDate(iso) {
+  try { return new Date(iso).toLocaleDateString("ko-KR"); } catch (e) { return ""; }
+}
+</script>
+</body>
+</html>

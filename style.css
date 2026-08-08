@@ -1,0 +1,206 @@
+/* =========================================================
+   style.css — 형성평가 퀴즈 발표 사이트
+   기존 "오늘의 퀴즈" 사이트의 배경 그라데이션/톤을 그대로 계승
+========================================================= */
+
+@import url("https://fonts.googleapis.com/css2?family=Jua&display=swap");
+
+:root {
+  --bg-page-1: #F3EEFF;
+  --bg-page-2: #EAF6FF;
+  --bg-card: #FFFFFF;
+  --bg-card-alt: #F7F4FF;
+  --bg-input: #FFFFFF;
+  --border-soft: #E1D9F7;
+  --border-strong: #CBB9F5;
+
+  --accent-violet: #DCCBFF;
+  --accent-violet-dark: #1A1A1A;
+  --accent-gold: #FFB800;
+  --accent-gold-dark: #C98A1E;
+  --accent-coral: #FF6B5B;
+  --accent-mint: #17B892;
+  --accent-red: #FFCBE6;
+  --accent-red-dark: #FF5C8A;
+
+  --text-main: #241B3D;
+  --text-muted: #6B6089;
+  --text-faint: #A79BC9;
+}
+
+* { box-sizing: border-box; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; }
+h1, h2, h3, .display-font, button { font-family: 'Jua', 'Pretendard', sans-serif; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255,184,0,0.14), transparent 40%),
+    radial-gradient(circle at 88% 12%, rgba(220,203,255,0.12), transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(23,184,146,0.10), transparent 45%),
+    linear-gradient(160deg, var(--bg-page-1), var(--bg-page-2));
+  color: var(--text-main);
+  min-height: 100vh;
+  transition: background-color 0.3s;
+}
+
+.hidden { display: none !important; }
+
+.view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 40px 20px 60px;
+}
+
+.container { width: 100%; max-width: 720px; }
+
+h1.page-title { text-align: center; font-size: 28px; margin-bottom: 4px; }
+p.page-sub { text-align: center; color: var(--text-muted); margin-top: 0; margin-bottom: 28px; }
+
+/* ---------- 카드 / 버튼 공통 ---------- */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 6px 20px rgba(36, 27, 61, 0.06);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  padding: 12px 18px;
+  background: var(--bg-card-alt);
+  color: var(--text-main);
+  transition: transform 0.08s, filter 0.15s;
+}
+button:hover { filter: brightness(0.97); }
+button:active { transform: scale(0.98); }
+
+.btn-primary { background: var(--accent-violet); color: var(--accent-violet-dark); font-weight: 700; }
+.btn-gold { background: var(--accent-gold); color: #3a2600; font-weight: 700; }
+.btn-mint { background: var(--accent-mint); color: #fff; font-weight: 700; }
+.btn-danger { background: var(--accent-red); color: var(--accent-red-dark); font-weight: 700; }
+.btn-ghost { background: transparent; border: 1px solid var(--border-strong); }
+.btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 8px; }
+.btn-block { width: 100%; }
+
+input[type=text], input[type=password], input[type=number], textarea, select {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 15px;
+}
+textarea { resize: vertical; min-height: 70px; }
+label.field-label { display: block; font-size: 13px; color: var(--text-muted); margin: 14px 0 6px; font-weight: 600; }
+
+/* ---------- 로그인 ---------- */
+.login-box { max-width: 360px; margin: 120px auto 0; text-align: center; }
+.login-box h2 { margin-bottom: 20px; }
+.error-text { color: var(--accent-red-dark); font-size: 13px; margin-top: 8px; }
+
+/* ---------- 세트 목록 ---------- */
+.set-list { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+.set-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+.set-card:hover { border-color: var(--border-strong); }
+.set-card .set-title { font-weight: 700; font-size: 17px; }
+.set-card .set-meta { color: var(--text-faint); font-size: 12px; margin-top: 4px; }
+.set-card .set-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.set-card .set-actions button { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+
+/* ---------- 세트 에디터 ---------- */
+.q-editor-item {
+  border: 1px dashed var(--border-strong);
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 14px;
+  position: relative;
+}
+.q-editor-item .q-type-badge {
+  display: inline-block;
+  background: var(--accent-violet);
+  color: var(--accent-violet-dark);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+.choice-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.choice-row input { flex: 1; }
+.img-preview { max-width: 100%; max-height: 160px; border-radius: 10px; margin-top: 8px; display: block; }
+.top-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+.color-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.color-row label { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px; padding: 0; background: none; cursor: pointer; }
+
+/* ---------- 발표 화면 ---------- */
+.present-topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 24px; background: rgba(255,255,255,0.6); backdrop-filter: blur(6px);
+  z-index: 10;
+}
+.progress-text { font-weight: 700; color: var(--text-muted); }
+.present-topbar .top-btns { display: flex; gap: 8px; }
+
+#question-capture {
+  width: 100%;
+  max-width: 720px;
+  margin-top: 90px;
+}
+.question-card { text-align: center; padding: 40px 30px; }
+.question-card .question-text { font-size: 24px; font-weight: 700; margin: 10px 0 20px; line-height: 1.5; }
+.question-card img.q-image { max-width: 100%; max-height: 320px; border-radius: 14px; margin-bottom: 20px; }
+
+.choice-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.choice-display {
+  padding: 14px; border-radius: 12px; border: 1.5px solid var(--border-soft);
+  font-size: 16px; text-align: left;
+}
+.choice-display.correct { border-color: var(--accent-mint); background: rgba(23,184,146,0.10); font-weight: 700; }
+
+.ox-row { display: flex; gap: 20px; justify-content: center; margin-top: 20px; }
+.ox-box {
+  width: 100px; height: 100px; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px; font-weight: 900; border: 2px solid var(--border-soft);
+}
+.ox-box.correct { border-color: var(--accent-mint); background: rgba(23,184,146,0.12); color: var(--accent-mint); }
+
+.answer-box {
+  margin-top: 24px; padding: 18px; border-radius: 14px;
+  background: var(--bg-card-alt); text-align: left;
+}
+.answer-box .answer-label { font-size: 13px; color: var(--accent-mint); font-weight: 700; margin-bottom: 4px; }
+.answer-box .explanation { color: var(--text-muted); font-size: 14px; margin-top: 8px; }
+
+.bottom-actions { display: flex; gap: 10px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
+
+.offline-badge {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  background: var(--accent-red); color: var(--accent-red-dark);
+  padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+}
+
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(255,255,255,0.85);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 10px; z-index: 100; font-weight: 700;
+}
