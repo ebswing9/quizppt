@@ -32,7 +32,7 @@
   <div id="question-capture">
     <div class="card question-card" id="question-card"></div>
     <div class="bottom-actions">
-      <button class="btn-gold btn-block" id="btn-reveal">정답 보기 (Space)</button>
+      <button class="btn-gold btn-block" id="btn-reveal">정답 보기</button>
       <button class="btn-primary btn-block hidden" id="btn-next">다음 문제 →</button>
     </div>
   </div>
@@ -169,11 +169,11 @@ function renderQuestion() {
   }
 
   if (revealed) {
-    let box = "";
     if (q.type === "short") {
-      box += `<div class="answer-label">정답</div><div>${escapeHtml(q.answer || "")}</div>`;
-      if (q.altAnswers) box += `<div class="explanation">인정 답안: ${escapeHtml(q.altAnswers)}</div>`;
+      html += `<div class="short-answer-display">${escapeHtml(q.answer || "")}</div>`;
     }
+    let box = "";
+    if (q.type === "short" && q.altAnswers) box += `<div class="explanation">인정 답안: ${escapeHtml(q.altAnswers)}</div>`;
     if (q.explanation) box += `<div class="explanation">${escapeHtml(q.explanation)}</div>`;
     if (box) html += `<div class="answer-box">${box}</div>`;
   }

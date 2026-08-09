@@ -32,8 +32,7 @@
   --text-faint: #A79BC9;
 }
 
-* { box-sizing: border-box; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; }
-h1, h2, h3, .display-font, button { font-family: 'Jua', 'Pretendard', sans-serif; }
+* { box-sizing: border-box; font-family: var(--font-question); }
 
 body {
   margin: 0;
@@ -207,7 +206,7 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
   font-size: 16px; text-align: left; cursor: pointer; transition: border-color .15s, background .15s;
 }
 .choice-display:hover { border-color: var(--btn-accent); }
-.choice-display.correct { border-color: var(--accent-mint-dark); background: rgba(168,230,213,0.35); font-weight: 700; }
+.choice-display.correct { border-color: var(--btn-accent); background: color-mix(in srgb, var(--btn-accent) 35%, white); font-weight: 700; }
 
 .ox-row { display: flex; gap: 20px; justify-content: center; margin-top: 20px; }
 .ox-box {
@@ -217,13 +216,20 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
   cursor: pointer; transition: border-color .15s, background .15s;
 }
 .ox-box:hover { border-color: var(--btn-accent); }
-.ox-box.correct { border-color: var(--accent-mint-dark); background: rgba(168,230,213,0.35); color: var(--accent-mint-dark); }
+.ox-box.correct { border-color: var(--btn-accent); background: color-mix(in srgb, var(--btn-accent) 35%, white); color: var(--text-main); }
+
+.short-answer-display {
+  font-size: 34px; font-weight: 800; text-align: center;
+  padding: 22px; border-radius: 16px; margin: 22px 0 0;
+  border: 2px solid var(--btn-accent);
+  background: color-mix(in srgb, var(--btn-accent) 25%, white);
+  color: var(--text-main);
+}
 
 .answer-box {
-  margin-top: 24px; padding: 18px; border-radius: 14px;
+  margin-top: 18px; padding: 18px; border-radius: 14px;
   background: var(--bg-card-alt); text-align: left;
 }
-.answer-box .answer-label { font-size: 13px; color: var(--accent-mint-dark); font-weight: 700; margin-bottom: 4px; }
 .answer-box .explanation { color: var(--text-muted); font-size: 15px; }
 .answer-box .explanation + .explanation { margin-top: 8px; }
 

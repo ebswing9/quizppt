@@ -37,12 +37,17 @@
         <label>배경색 2 <input type="color" id="bg-color-2"></label>
         <label>버튼 색 <input type="color" id="btn-color"></label>
       </div>
+      <label class="field-label">폰트 즐겨찾기</label>
+      <select id="font-preset-select" style="margin-bottom:8px;">
+        <option value="">직접 입력...</option>
+      </select>
       <label class="field-label">폰트 이름 (CSS font-family 값, 예: Gaegu)</label>
       <input type="text" id="font-name" placeholder="예: Gaegu">
       <label class="field-label">폰트 임베드 링크 (구글 폰트, 눈누 등에서 복사한 &lt;link&gt; 주소)</label>
       <input type="text" id="font-url" placeholder="예: https://fonts.googleapis.com/css2?family=Gaegu&display=swap">
       <div style="margin-top:12px;">
         <button class="btn-gold btn-sm" id="btn-save-colors">색상·폰트 저장</button>
+        <button class="btn-ghost btn-sm" id="btn-add-font-preset">현재 폰트를 즐겨찾기에 추가</button>
         <button class="btn-ghost btn-sm" id="btn-backup">전체 백업 다운로드</button>
         <a href="index.html" target="_blank"><button class="btn-ghost btn-sm" type="button">퀴즈 보기 (index) ↗</button></a>
       </div>
@@ -121,6 +126,8 @@ async function login(pw) {
 })();
 
 // ---------- 설정(배경색) ----------
+let fontPresets = [];
+
 async function loadSettings() {
   const res = await apiGet("settings");
   if (res.ok) {
@@ -129,15 +136,48 @@ async function loadSettings() {
     document.getElementById("btn-color").value = res.settings.buttonColor || "#DCCBFF";
     document.getElementById("font-name").value = res.settings.fontName || "Jua";
     document.getElementById("font-url").value = res.settings.fontUrl || "";
+    try { fontPresets = JSON.parse(res.settings.fontPresets || "[]"); } catch (e) { fontPresets = []; }
+    renderFontPresetSelect();
   }
 }
+
+function renderFontPresetSelect() {
+  const sel = document.getElementById("font-preset-select");
+  const curName = document.getElementById("font-name").value;
+  sel.innerHTML = `<option value="">직접 입력...</option>`;
+  fontPresets.forEach((p, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.innerText = p.name;
+    if (p.name === curName) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+document.getElementById("font-preset-select").addEventListener("change", (e) => {
+  if (e.target.value === "") return;
+  const p = fontPresets[Number(e.target.value)];
+  document.getElementById("font-name").value = p.name;
+  document.getElementById("font-url").value = p.url;
+});
+
+document.getElementById("btn-add-font-preset").addEventListener("click", () => {
+  const name = document.getElementById("font-name").value.trim();
+  const url = document.getElementById("font-url").value.trim();
+  if (!name || !url) { alert("폰트 이름과 링크를 먼저 입력해주세요."); return; }
+  if (fontPresets.some(p => p.name === name)) { alert("이미 즐겨찾기에 있는 이름이에요."); return; }
+  fontPresets.push({ name, url });
+  renderFontPresetSelect();
+  alert("즐겨찾기에 추가했어요. '색상·폰트 저장'을 눌러야 최종 저장돼요.");
+});
+
 document.getElementById("btn-save-colors").addEventListener("click", async () => {
   const bgColor1 = document.getElementById("bg-color-1").value;
   const bgColor2 = document.getElementById("bg-color-2").value;
   const buttonColor = document.getElementById("btn-color").value;
   const fontName = document.getElementById("font-name").value.trim();
   const fontUrl = document.getElementById("font-url").value.trim();
-  await apiPost("saveSettings", { password: sessionPassword, bgColor1, bgColor2, buttonColor, fontName, fontUrl });
+  await apiPost("saveSettings", { password: sessionPassword, bgColor1, bgColor2, buttonColor, fontName, fontUrl, fontPresets: JSON.stringify(fontPresets) });
   localStorage.removeItem("quiz_bgColors");
   await applyBackgroundColors();
   alert("색상·폰트가 저장됐어요.");
@@ -452,11 +492,11 @@ function questionCaptureHtml(q, revealed) {
   }
 
   if (revealed) {
-    let box = "";
     if (q.type === "short") {
-      box += `<div class="answer-label">정답</div><div>${escapeHtml(q.answer || "")}</div>`;
-      if (q.altAnswers) box += `<div class="explanation">인정 답안: ${escapeHtml(q.altAnswers)}</div>`;
+      html += `<div class="short-answer-display">${escapeHtml(q.answer || "")}</div>`;
     }
+    let box = "";
+    if (q.type === "short" && q.altAnswers) box += `<div class="explanation">인정 답안: ${escapeHtml(q.altAnswers)}</div>`;
     if (q.explanation) box += `<div class="explanation">${escapeHtml(q.explanation)}</div>`;
     if (box) html += `<div class="answer-box">${box}</div>`;
   }
