@@ -29,65 +29,73 @@
       <button class="btn-ghost btn-sm" id="btn-logout">로그아웃</button>
     </div>
 
-    <!-- 사이트 설정 -->
-    <div class="card">
-      <h3 style="margin-top:0;">사이트 배경색</h3>
-      <div class="color-row">
-        <label>배경색 1 <input type="color" id="bg-color-1"></label>
-        <label>배경색 2 <input type="color" id="bg-color-2"></label>
-        <label>버튼 색 <input type="color" id="btn-color"></label>
-      </div>
-      <label class="field-label">폰트 크기</label>
-      <div class="color-row">
-        <label>문제 폰트 크기(px) <input type="number" id="q-font-size" style="width:70px;" min="16" max="100"></label>
-        <label>보기 폰트 크기(px) <input type="number" id="c-font-size" style="width:70px;" min="10" max="40"></label>
-      </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="design">🎨 사이트 디자인</button>
+      <button class="tab-btn" data-tab="sets">📝 퀴즈 세트</button>
+    </div>
 
-      <h4 style="margin-bottom:6px;">문제 폰트</h4>
-      <div style="display:flex; gap:8px;">
-        <select id="font-preset-select-q" style="flex:1;"><option value="">직접 입력...</option></select>
-        <button class="btn-danger btn-sm" id="btn-delete-font-preset-q" type="button">즐겨찾기 삭제</button>
-      </div>
-      <label class="field-label">폰트 이름 (CSS font-family 값)</label>
-      <input type="text" id="font-name-q" placeholder="예: Gaegu">
-      <label class="field-label">폰트 임베드 — URL 또는 @font-face 코드 전체</label>
-      <textarea id="font-url-q" style="min-height:70px; font-family:monospace; font-size:13px;"></textarea>
-      <div id="font-preview-q" class="card" style="margin-top:10px; text-align:center; padding:14px;">문제 폰트 미리보기</div>
-      <button class="btn-ghost btn-sm" style="margin-top:8px;" id="btn-add-font-preset-q">이 폰트를 즐겨찾기에 추가</button>
+    <!-- ===== 탭: 사이트 디자인 ===== -->
+    <div id="tab-design" class="tab-panel">
+      <div class="card">
+        <h3 style="margin-top:0;">색상</h3>
+        <div class="color-row">
+          <label>배경색 1 <input type="color" id="bg-color-1"></label>
+          <label>배경색 2 <input type="color" id="bg-color-2"></label>
+          <label>버튼 색 <input type="color" id="btn-color"></label>
+        </div>
 
-      <h4 style="margin:22px 0 6px;">보기 폰트</h4>
-      <div style="display:flex; gap:8px;">
-        <select id="font-preset-select-c" style="flex:1;"><option value="">직접 입력...</option></select>
-        <button class="btn-danger btn-sm" id="btn-delete-font-preset-c" type="button">즐겨찾기 삭제</button>
-      </div>
-      <label class="field-label">폰트 이름 (CSS font-family 값)</label>
-      <input type="text" id="font-name-c" placeholder="예: Gaegu">
-      <label class="field-label">폰트 임베드 — URL 또는 @font-face 코드 전체</label>
-      <textarea id="font-url-c" style="min-height:70px; font-family:monospace; font-size:13px;"></textarea>
-      <div id="font-preview-c" class="card" style="margin-top:10px; text-align:center; padding:14px;">보기 폰트 미리보기</div>
-      <button class="btn-ghost btn-sm" style="margin-top:8px;" id="btn-add-font-preset-c">이 폰트를 즐겨찾기에 추가</button>
+        <h3>문제 폰트</h3>
+        <div class="color-row">
+          <select id="font-select-q" style="flex:1; min-width:160px;"></select>
+          <label>크기(px) <input type="number" id="q-font-size" style="width:70px;" min="16" max="100"></label>
+        </div>
+        <div id="font-preview-q" class="card" style="margin-top:10px; text-align:center; padding:14px;">문제 미리보기 텍스트입니다</div>
 
-      <div style="margin-top:18px;">
-        <button class="btn-gold btn-sm" id="btn-save-colors">색상·폰트 저장</button>
-        <button class="btn-ghost btn-sm" id="btn-backup">전체 백업 다운로드</button>
-        <a href="index.html" target="_blank"><button class="btn-ghost btn-sm" type="button">퀴즈 보기 (index) ↗</button></a>
+        <h3>보기 폰트</h3>
+        <div class="color-row">
+          <select id="font-select-c" style="flex:1; min-width:160px;"></select>
+          <label>크기(px) <input type="number" id="c-font-size" style="width:70px;" min="10" max="40"></label>
+        </div>
+        <div id="font-preview-c" class="card" style="margin-top:10px; text-align:center; padding:14px;">보기 미리보기 텍스트</div>
+
+        <!-- 폰트 즐겨찾기 관리 (접기/펼치기) -->
+        <div class="q-editor-header" id="toggle-font-manager" style="margin-top:20px;">
+          <span class="q-editor-headline">⚙️ 폰트 즐겨찾기 관리</span>
+          <span class="q-editor-caret" id="font-manager-caret">▸</span>
+        </div>
+        <div id="font-manager-body" class="hidden" style="margin-top:12px;">
+          <div id="font-preset-list" style="margin-bottom:14px;"></div>
+          <label class="field-label">새 폰트 이름 (CSS font-family 값)</label>
+          <input type="text" id="new-font-name" placeholder="예: Gaegu">
+          <label class="field-label">폰트 임베드 — URL 또는 @font-face 코드 전체</label>
+          <textarea id="new-font-url" style="min-height:70px; font-family:monospace; font-size:13px;" placeholder="예1) https://fonts.googleapis.com/css2?family=Gaegu&display=swap
+예2) @font-face { font-family: 'Aggravo'; src: url('...') format('woff'); font-weight:300; font-display:swap; }"></textarea>
+          <button class="btn-ghost btn-sm" style="margin-top:8px;" id="btn-add-font-preset">즐겨찾기에 추가</button>
+        </div>
+
+        <div style="margin-top:20px;">
+          <button class="btn-gold btn-sm" id="btn-save-colors">저장</button>
+          <button class="btn-ghost btn-sm" id="btn-backup">전체 백업 다운로드</button>
+          <a href="index.html" target="_blank"><button class="btn-ghost btn-sm" type="button">퀴즈 보기 (index) ↗</button></a>
+        </div>
       </div>
     </div>
 
-    <!-- 세트 목록 -->
-    <div class="top-actions" style="margin-top:26px;">
-      <h3 style="margin:0;">퀴즈 세트</h3>
-      <button class="btn-primary" id="btn-new-set">+ 새 세트 만들기</button>
-    </div>
-    <div id="set-list" class="set-list"></div>
-
-    <!-- 세트 에디터 -->
-    <div id="editor" class="card hidden" style="margin-top:24px;">
+    <!-- ===== 탭: 퀴즈 세트 ===== -->
+    <div id="tab-sets" class="tab-panel hidden">
       <div class="top-actions">
-        <h3 style="margin:0;" id="editor-title-label">새 세트</h3>
-        <div>
-          <button class="btn-ghost btn-sm" id="btn-cancel-edit">취소</button>
-          <button class="btn-mint btn-sm" id="btn-save-set">저장</button>
+        <h3 style="margin:0;">퀴즈 세트</h3>
+        <button class="btn-primary" id="btn-new-set">+ 새 세트 만들기</button>
+      </div>
+      <div id="set-list" class="set-list"></div>
+
+      <!-- 세트 에디터 -->
+      <div id="editor" class="card hidden" style="margin-top:24px;">
+        <div class="top-actions">
+          <h3 style="margin:0;" id="editor-title-label">새 세트</h3>
+          <div>
+            <button class="btn-ghost btn-sm" id="btn-cancel-edit">취소</button>
+            <button class="btn-mint btn-sm" id="btn-save-set">저장</button>
         </div>
       </div>
       <label class="field-label">세트 제목</label>
@@ -97,6 +105,7 @@
 
       <button class="btn-ghost btn-block" style="margin-top:16px;" id="btn-add-question">+ 문제 추가</button>
     </div>
+    </div> <!-- /tab-sets -->
   </div>
 </div>
 
@@ -146,8 +155,27 @@ async function login(pw) {
   if (saved) login(saved);
 })();
 
-// ---------- 설정(배경색) ----------
+// ---------- 탭 전환 ----------
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-design").classList.toggle("hidden", btn.dataset.tab !== "design");
+    document.getElementById("tab-sets").classList.toggle("hidden", btn.dataset.tab !== "sets");
+  });
+});
+
+// 폰트 즐겨찾기 관리 패널 접기/펼치기
+document.getElementById("toggle-font-manager").addEventListener("click", () => {
+  const body = document.getElementById("font-manager-body");
+  const isHidden = body.classList.toggle("hidden");
+  document.getElementById("font-manager-caret").innerText = isHidden ? "▸" : "▾";
+});
+
+// ---------- 설정(색상/폰트) ----------
 let fontPresets = [];
+let currentQFont = { name: "Jua", url: "" };
+let currentCFont = { name: "Jua", url: "" };
 
 async function loadSettings() {
   const res = await apiGet("settings");
@@ -157,99 +185,118 @@ async function loadSettings() {
     document.getElementById("btn-color").value = res.settings.buttonColor || "#DCCBFF";
     document.getElementById("q-font-size").value = res.settings.questionFontSize || 44;
     document.getElementById("c-font-size").value = res.settings.choiceFontSize || 16;
-    document.getElementById("font-name-q").value = res.settings.questionFontName || "Jua";
-    document.getElementById("font-url-q").value = res.settings.questionFontUrl || "";
-    document.getElementById("font-name-c").value = res.settings.choiceFontName || "Jua";
-    document.getElementById("font-url-c").value = res.settings.choiceFontUrl || "";
+    currentQFont = { name: res.settings.questionFontName || "Jua", url: res.settings.questionFontUrl || "" };
+    currentCFont = { name: res.settings.choiceFontName || "Jua", url: res.settings.choiceFontUrl || "" };
     try { fontPresets = JSON.parse(res.settings.fontPresets || "[]"); } catch (e) { fontPresets = []; }
-    renderFontPresetSelect("q");
-    renderFontPresetSelect("c");
+    renderFontSelects();
+    renderFontPresetList();
     updateFontPreview("q");
     updateFontPreview("c");
   }
 }
 
-function renderFontPresetSelect(suffix) {
-  const sel = document.getElementById(`font-preset-select-${suffix}`);
-  const curName = document.getElementById(`font-name-${suffix}`).value;
-  sel.innerHTML = `<option value="">직접 입력...</option>`;
-  fontPresets.forEach((p, i) => {
-    const opt = document.createElement("option");
-    opt.value = i;
-    opt.innerText = p.name;
-    if (p.name === curName) opt.selected = true;
-    sel.appendChild(opt);
+// 종류 드롭다운: 즐겨찾기 목록에서만 고름
+function renderFontSelects() {
+  ["q", "c"].forEach(suffix => {
+    const cur = suffix === "q" ? currentQFont : currentCFont;
+    const sel = document.getElementById(`font-select-${suffix}`);
+    sel.innerHTML = "";
+    let matched = false;
+    fontPresets.forEach((p, i) => {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.innerText = p.name;
+      if (p.name === cur.name) { opt.selected = true; matched = true; }
+      sel.appendChild(opt);
+    });
+    if (!matched && fontPresets.length > 0) {
+      // 즐겨찾기에 없는 값이 현재 설정돼 있는 경우, 안내용 옵션을 하나 보여줌
+      const opt = document.createElement("option");
+      opt.value = "-1";
+      opt.innerText = `${cur.name} (즐겨찾기에 없음)`;
+      opt.selected = true;
+      sel.prepend(opt);
+    }
+    if (fontPresets.length === 0) {
+      const opt = document.createElement("option");
+      opt.innerText = "즐겨찾기를 먼저 추가해주세요";
+      sel.appendChild(opt);
+    }
   });
 }
 
-["q", "c"].forEach(suffix => {
-  document.getElementById(`font-preset-select-${suffix}`).addEventListener("change", (e) => {
-    if (e.target.value === "") return;
-    const p = fontPresets[Number(e.target.value)];
-    document.getElementById(`font-name-${suffix}`).value = p.name;
-    document.getElementById(`font-url-${suffix}`).value = p.url;
-    updateFontPreview(suffix);
-  });
-
-  document.getElementById(`btn-add-font-preset-${suffix}`).addEventListener("click", () => {
-    const name = document.getElementById(`font-name-${suffix}`).value.trim();
-    const url = document.getElementById(`font-url-${suffix}`).value.trim();
-    if (!name || !url) { alert("폰트 이름과 링크(또는 코드)를 먼저 입력해주세요."); return; }
-    if (fontPresets.some(p => p.name === name)) { alert("이미 즐겨찾기에 있는 이름이에요."); return; }
-    fontPresets.push({ name, url });
-    renderFontPresetSelect("q");
-    renderFontPresetSelect("c");
-    alert("즐겨찾기에 추가했어요. '색상·폰트 저장'을 눌러야 최종 저장돼요.");
-  });
-
-  document.getElementById(`btn-delete-font-preset-${suffix}`).addEventListener("click", () => {
-    const sel = document.getElementById(`font-preset-select-${suffix}`);
-    if (sel.value === "") { alert("삭제할 즐겨찾기를 드롭다운에서 먼저 선택해주세요."); return; }
-    const idx = Number(sel.value);
-    if (!confirm(`"${fontPresets[idx].name}" 즐겨찾기를 삭제할까요?`)) return;
-    fontPresets.splice(idx, 1);
-    renderFontPresetSelect("q");
-    renderFontPresetSelect("c");
-    alert("삭제했어요. '색상·폰트 저장'을 눌러야 최종 저장돼요.");
-  });
-
-  // 입력할 때마다 실시간 미리보기 갱신 (저장 전, API 호출 없이 브라우저 안에서만)
-  ["font-name-", "font-url-"].forEach(prefix => {
-    document.getElementById(prefix + suffix).addEventListener("input", () => updateFontPreview(suffix));
-  });
+document.getElementById("font-select-q").addEventListener("change", (e) => {
+  if (e.target.value === "" || e.target.value === "-1") return;
+  currentQFont = fontPresets[Number(e.target.value)];
+  updateFontPreview("q");
+});
+document.getElementById("font-select-c").addEventListener("change", (e) => {
+  if (e.target.value === "" || e.target.value === "-1") return;
+  currentCFont = fontPresets[Number(e.target.value)];
+  updateFontPreview("c");
 });
 document.getElementById("q-font-size").addEventListener("input", () => updateFontPreview("q"));
 document.getElementById("c-font-size").addEventListener("input", () => updateFontPreview("c"));
 
 function updateFontPreview(suffix) {
-  const name = document.getElementById(`font-name-${suffix}`).value.trim() || "Jua";
-  const url = document.getElementById(`font-url-${suffix}`).value.trim();
+  const font = suffix === "q" ? currentQFont : currentCFont;
   const size = suffix === "q" ? document.getElementById("q-font-size").value || 44 : document.getElementById("c-font-size").value || 16;
-  applyFontEmbed(url, "preview-" + suffix);
+  applyFontEmbed(font.url, "preview-" + suffix);
   const preview = document.getElementById(`font-preview-${suffix}`);
-  preview.style.fontFamily = `'${name}', 'Pretendard', sans-serif`;
+  preview.style.fontFamily = `'${font.name}', 'Pretendard', sans-serif`;
   preview.style.fontSize = size + "px";
   preview.innerText = suffix === "q" ? "문제 미리보기 텍스트입니다" : "보기 미리보기 텍스트";
 }
+
+// ---------- 폰트 즐겨찾기 관리 ----------
+function renderFontPresetList() {
+  const wrap = document.getElementById("font-preset-list");
+  if (fontPresets.length === 0) { wrap.innerHTML = `<p style="color:var(--text-faint); font-size:13px;">즐겨찾기에 등록된 폰트가 없어요.</p>`; return; }
+  wrap.innerHTML = "";
+  fontPresets.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "font-preset-row";
+    row.innerHTML = `<span>${escapeHtml(p.name)}</span><button class="btn-danger btn-sm" data-del-preset="${i}">삭제</button>`;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll("[data-del-preset]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.delPreset);
+      if (!confirm(`"${fontPresets[idx].name}" 즐겨찾기를 삭제할까요?`)) return;
+      fontPresets.splice(idx, 1);
+      renderFontPresetList();
+      renderFontSelects();
+    });
+  });
+}
+
+document.getElementById("btn-add-font-preset").addEventListener("click", () => {
+  const name = document.getElementById("new-font-name").value.trim();
+  const url = document.getElementById("new-font-url").value.trim();
+  if (!name || !url) { alert("폰트 이름과 링크(또는 코드)를 입력해주세요."); return; }
+  if (fontPresets.some(p => p.name === name)) { alert("이미 즐겨찾기에 있는 이름이에요."); return; }
+  fontPresets.push({ name, url });
+  document.getElementById("new-font-name").value = "";
+  document.getElementById("new-font-url").value = "";
+  renderFontPresetList();
+  renderFontSelects();
+});
 
 document.getElementById("btn-save-colors").addEventListener("click", async () => {
   const bgColor1 = document.getElementById("bg-color-1").value;
   const bgColor2 = document.getElementById("bg-color-2").value;
   const buttonColor = document.getElementById("btn-color").value;
-  const questionFontName = document.getElementById("font-name-q").value.trim();
-  const questionFontUrl = document.getElementById("font-url-q").value.trim();
-  const choiceFontName = document.getElementById("font-name-c").value.trim();
-  const choiceFontUrl = document.getElementById("font-url-c").value.trim();
   const questionFontSize = document.getElementById("q-font-size").value;
   const choiceFontSize = document.getElementById("c-font-size").value;
   await apiPost("saveSettings", {
     password: sessionPassword, bgColor1, bgColor2, buttonColor,
-    questionFontName, questionFontUrl, choiceFontName, choiceFontUrl,
+    questionFontName: currentQFont.name, questionFontUrl: currentQFont.url,
+    choiceFontName: currentCFont.name, choiceFontUrl: currentCFont.url,
     fontPresets: JSON.stringify(fontPresets), questionFontSize, choiceFontSize
   });
   localStorage.removeItem("quiz_bgColors");
   await applyBackgroundColors();
-  alert("색상·폰트가 저장됐어요.");
+  alert("저장됐어요.");
 });
 
 document.getElementById("btn-backup").addEventListener("click", async () => {
