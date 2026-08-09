@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>퀴즈 관리자</title>
 <link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script src="config.js"></script>
 </head>
 <body>
@@ -23,14 +25,18 @@
 <div id="view-main" class="view hidden">
   <div class="container">
     <h1 class="page-title">퀴즈 관리자</h1>
+    <div style="text-align:center; margin-bottom:16px;">
+      <button class="btn-ghost btn-sm" id="btn-logout">로그아웃</button>
+    </div>
 
     <!-- 사이트 설정 -->
     <div class="card">
       <h3 style="margin-top:0;">사이트 배경색</h3>
       <div class="color-row">
-        <label>색상 1 <input type="color" id="bg-color-1"></label>
-        <label>색상 2 <input type="color" id="bg-color-2"></label>
-        <button class="btn-gold btn-sm" id="btn-save-colors">배경색 저장</button>
+        <label>배경색 1 <input type="color" id="bg-color-1"></label>
+        <label>배경색 2 <input type="color" id="bg-color-2"></label>
+        <label>버튼 색 <input type="color" id="btn-color"></label>
+        <button class="btn-gold btn-sm" id="btn-save-colors">색상 저장</button>
         <button class="btn-ghost btn-sm" id="btn-backup">전체 백업 다운로드</button>
       </div>
     </div>
@@ -61,6 +67,17 @@
   </div>
 </div>
 
+<!-- PPTX 캡처용 (화면엔 안 보임) -->
+<div id="pptx-slide" style="position:fixed; left:-99999px; top:0;">
+  <div id="pptx-slide-inner" class="pptx-slide">
+    <div class="card question-card" id="pptx-question-card"></div>
+  </div>
+</div>
+<div id="loading-overlay" class="loading-overlay hidden">
+  <div>⏳ PPTX 만드는 중...</div>
+  <div id="loading-progress" style="font-size:13px;color:var(--text-muted);"></div>
+</div>
+
 <script>
 let sessionPassword = "";
 let sets = [];
@@ -68,14 +85,18 @@ let editingId = null;       // 수정 중인 세트 id (null이면 새 세트)
 let editingQuestions = [];  // 에디터에서 편집 중인 문제 배열
 
 // ---------- 로그인 ----------
-document.getElementById("btn-login").addEventListener("click", login);
-document.getElementById("login-password").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+document.getElementById("btn-login").addEventListener("click", () => login(document.getElementById("login-password").value));
+document.getElementById("login-password").addEventListener("keydown", e => { if (e.key === "Enter") login(document.getElementById("login-password").value); });
+document.getElementById("btn-logout").addEventListener("click", () => {
+  localStorage.removeItem("quiz_admin_pw");
+  location.reload();
+});
 
-async function login() {
-  const pw = document.getElementById("login-password").value;
+async function login(pw) {
   const res = await apiPost("login", { password: pw });
   if (res.ok) {
     sessionPassword = pw;
+    localStorage.setItem("quiz_admin_pw", pw); // 다음 방문 때 자동 로그인
     document.getElementById("view-login").classList.add("hidden");
     document.getElementById("view-main").classList.remove("hidden");
     await applyBackgroundColors();
@@ -86,21 +107,29 @@ async function login() {
   }
 }
 
+// 페이지를 열 때, 저장된 비밀번호가 있으면 자동으로 로그인 시도
+(function tryAutoLogin() {
+  const saved = localStorage.getItem("quiz_admin_pw");
+  if (saved) login(saved);
+})();
+
 // ---------- 설정(배경색) ----------
 async function loadSettings() {
   const res = await apiGet("settings");
   if (res.ok) {
     document.getElementById("bg-color-1").value = res.settings.bgColor1 || "#F3EEFF";
     document.getElementById("bg-color-2").value = res.settings.bgColor2 || "#EAF6FF";
+    document.getElementById("btn-color").value = res.settings.buttonColor || "#DCCBFF";
   }
 }
 document.getElementById("btn-save-colors").addEventListener("click", async () => {
   const bgColor1 = document.getElementById("bg-color-1").value;
   const bgColor2 = document.getElementById("bg-color-2").value;
-  await apiPost("saveSettings", { password: sessionPassword, bgColor1, bgColor2 });
+  const buttonColor = document.getElementById("btn-color").value;
+  await apiPost("saveSettings", { password: sessionPassword, bgColor1, bgColor2, buttonColor });
   localStorage.removeItem("quiz_bgColors");
   await applyBackgroundColors();
-  alert("배경색이 저장됐어요.");
+  alert("색상이 저장됐어요.");
 });
 
 document.getElementById("btn-backup").addEventListener("click", async () => {
@@ -133,19 +162,27 @@ function renderSetList() {
     el.innerHTML = `
       <div>
         <div class="set-title">${escapeHtml(s.title)}</div>
-        <div class="set-meta">사용 ${s.useCount || 0}회 ${s.lastUsedAt ? "· 마지막 " + fmtDate(s.lastUsedAt) : ""}</div>
+        <div class="set-meta">${s.visible === false ? "🙈 숨김" : "👀 공개중"} · 사용 ${s.useCount || 0}회 ${s.lastUsedAt ? "· 마지막 " + fmtDate(s.lastUsedAt) : ""}</div>
       </div>
       <div class="set-actions">
         <button class="btn-ghost" data-act="up">↑</button>
         <button class="btn-ghost" data-act="down">↓</button>
+        <button class="btn-ghost" data-act="vis">${s.visible === false ? "공개하기" : "숨기기"}</button>
         <button class="btn-ghost" data-act="edit">편집</button>
         <button class="btn-ghost" data-act="dup">복제</button>
+        <button class="btn-ghost" data-act="pptx">PPTX</button>
         <button class="btn-danger" data-act="del">삭제</button>
       </div>
     `;
     el.querySelector('[data-act=up]').addEventListener("click", (e) => { e.stopPropagation(); moveSet(i, -1); });
     el.querySelector('[data-act=down]').addEventListener("click", (e) => { e.stopPropagation(); moveSet(i, 1); });
+    el.querySelector('[data-act=vis]').addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await apiPost("setVisibility", { password: sessionPassword, id: s.id, visible: s.visible === false });
+      loadSets();
+    });
     el.querySelector('[data-act=edit]').addEventListener("click", (e) => { e.stopPropagation(); openEditor(s.id); });
+    el.querySelector('[data-act=pptx]').addEventListener("click", (e) => { e.stopPropagation(); exportPptxForSet(s.id); });
     el.querySelector('[data-act=dup]').addEventListener("click", async (e) => {
       e.stopPropagation();
       await apiPost("duplicateSet", { password: sessionPassword, id: s.id });
@@ -343,6 +380,90 @@ async function saveSet() {
   } else {
     alert("저장 실패: " + res.error);
   }
+}
+
+// ---------- PPTX 내보내기 (배경 포함, 고정 16:9 캡처) ----------
+function questionCaptureHtml(q, revealed) {
+  let html = "";
+  if (q.image) html += `<img class="q-image" src="${q.image}" crossorigin="anonymous">`;
+  html += `<div class="question-text">${escapeHtml(q.question)}</div>`;
+
+  if (q.type === "mcq") {
+    html += `<div class="choice-list">`;
+    (q.choices || []).forEach(c => {
+      const isCorrect = revealed && c === q.answer;
+      html += `<div class="choice-display ${isCorrect ? "correct" : ""}">${escapeHtml(c)}</div>`;
+    });
+    html += `</div>`;
+  } else if (q.type === "ox") {
+    html += `<div class="ox-row">
+      <div class="ox-box ${revealed && q.answer === "O" ? "correct" : ""}">O</div>
+      <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}">X</div>
+    </div>`;
+  }
+
+  if (revealed) {
+    let box = "";
+    if (q.type === "short") {
+      box += `<div class="answer-label">정답</div><div>${escapeHtml(q.answer || "")}</div>`;
+      if (q.altAnswers) box += `<div class="explanation">인정 답안: ${escapeHtml(q.altAnswers)}</div>`;
+    }
+    if (q.explanation) box += `<div class="explanation">${escapeHtml(q.explanation)}</div>`;
+    if (box) html += `<div class="answer-box">${box}</div>`;
+  }
+  return html;
+}
+
+async function exportPptxForSet(id) {
+  const res = await apiGet("set", { id });
+  if (!res.ok) { alert("세트를 불러오지 못했어요."); return; }
+  const full = res.set;
+
+  const includeAnswers = confirm("정답 화면도 슬라이드에 포함할까요? (확인=포함, 취소=문제만)");
+  const overlay = document.getElementById("loading-overlay");
+  const progressEl = document.getElementById("loading-progress");
+  overlay.classList.remove("hidden");
+
+  const slideEl = document.getElementById("pptx-slide-inner");
+  const cardEl = document.getElementById("pptx-question-card");
+  const pptx = new PptxGenJS();
+  pptx.defineLayout({ name: "WIDE", width: 10, height: 5.63 });
+  pptx.layout = "WIDE";
+
+  try {
+    for (let i = 0; i < full.questions.length; i++) {
+      const q = full.questions[i];
+      progressEl.innerText = `${i + 1} / ${full.questions.length}`;
+
+      cardEl.innerHTML = questionCaptureHtml(q, false);
+      await waitForImages(slideEl);
+      await addSlideCapture(pptx, slideEl);
+
+      if (includeAnswers) {
+        cardEl.innerHTML = questionCaptureHtml(q, true);
+        await waitForImages(slideEl);
+        await addSlideCapture(pptx, slideEl);
+      }
+    }
+    await pptx.writeFile({ fileName: `${full.title}.pptx` });
+  } catch (e) {
+    alert("PPTX 생성 중 문제가 발생했어요: " + e.message);
+  } finally {
+    overlay.classList.add("hidden");
+  }
+}
+
+function waitForImages(container) {
+  const imgs = container.querySelectorAll("img");
+  return Promise.all(Array.from(imgs).map(img => img.complete ? Promise.resolve() :
+    new Promise(res => { img.onload = res; img.onerror = res; })));
+}
+
+async function addSlideCapture(pptx, el) {
+  const canvas = await html2canvas(el, { useCORS: true });
+  const dataUrl = canvas.toDataURL("image/png");
+  const slide = pptx.addSlide();
+  slide.addImage({ data: dataUrl, x: 0, y: 0, w: 10, h: 5.63 });
 }
 
 // ---------- 유틸 ----------

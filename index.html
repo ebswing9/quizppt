@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>형성평가 퀴즈</title>
 <link rel="stylesheet" href="style.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script src="config.js"></script>
 </head>
 <body>
@@ -14,7 +12,7 @@
 <!-- ===== 목록 화면 ===== -->
 <div id="view-list" class="view">
   <div class="container">
-    <h1 class="page-title">형성평가 퀴즈</h1>
+    <h1 class="page-title">QUIZ</h1>
     <p class="page-sub">보여줄 세트를 선택하세요</p>
     <div id="set-list" class="set-list"></div>
   </div>
@@ -27,7 +25,6 @@
     <div class="top-btns">
       <button class="btn-ghost btn-sm" id="btn-restart">처음부터</button>
       <button class="btn-ghost btn-sm" id="btn-fullscreen">전체화면</button>
-      <button class="btn-ghost btn-sm" id="btn-pptx">PPTX 저장</button>
       <button class="btn-ghost btn-sm" id="btn-exit">목록으로</button>
     </div>
   </div>
@@ -42,10 +39,6 @@
 </div>
 
 <div id="offline-badge" class="offline-badge hidden">오프라인 캐시로 표시 중</div>
-<div id="loading-overlay" class="loading-overlay hidden">
-  <div>⏳ PPTX 만드는 중...</div>
-  <div id="loading-progress" style="font-size:13px;color:var(--text-muted);"></div>
-</div>
 
 <script>
 let sets = [];
@@ -63,7 +56,6 @@ let revealed = false;
   document.getElementById("btn-restart").addEventListener("click", () => { curIdx = 0; revealed = false; renderQuestion(); });
   document.getElementById("btn-exit").addEventListener("click", exitToList);
   document.getElementById("btn-fullscreen").addEventListener("click", toggleFullscreen);
-  document.getElementById("btn-pptx").addEventListener("click", exportPptx);
 
   document.addEventListener("keydown", (e) => {
     if (document.getElementById("view-present").classList.contains("hidden")) return;
@@ -77,7 +69,7 @@ async function loadSetList() {
   try {
     const res = await apiGet("sets");
     if (res.ok) {
-      sets = res.sets;
+      sets = res.sets.filter(s => s.visible !== false);
       localStorage.setItem("quiz_cache_sets", JSON.stringify(sets));
       document.getElementById("offline-badge").classList.add("hidden");
     } else {
@@ -104,10 +96,7 @@ function renderSetList() {
     const el = document.createElement("div");
     el.className = "set-card";
     el.innerHTML = `
-      <div>
-        <div class="set-title">${escapeHtml(s.title)}</div>
-        <div class="set-meta">사용 ${s.useCount || 0}회 ${s.lastUsedAt ? "· 마지막 " + fmtDate(s.lastUsedAt) : ""}</div>
-      </div>
+      <div class="set-title">${escapeHtml(s.title)}</div>
       <button class="btn-primary btn-sm">시작</button>
     `;
     el.addEventListener("click", () => startSet(s.id));
@@ -158,7 +147,7 @@ function prevQuestion() {
 function renderQuestion() {
   const q = currentSet.questions[curIdx];
   document.getElementById("progress-text").innerText = `${curIdx + 1} / ${currentSet.questions.length}`;
-  document.getElementById("btn-reveal").classList.toggle("hidden", revealed);
+  document.getElementById("btn-reveal").classList.toggle("hidden", revealed || q.type !== "short");
   document.getElementById("btn-next").classList.toggle("hidden", !revealed);
 
   let html = "";
@@ -167,85 +156,41 @@ function renderQuestion() {
 
   if (q.type === "mcq") {
     html += `<div class="choice-list">`;
-    (q.choices || []).forEach(c => {
+    (q.choices || []).forEach((c, i) => {
       const isCorrect = revealed && c === q.answer;
-      html += `<div class="choice-display ${isCorrect ? "correct" : ""}">${escapeHtml(c)}</div>`;
+      html += `<div class="choice-display ${isCorrect ? "correct" : ""}" data-choice-click>${escapeHtml(c)}</div>`;
     });
     html += `</div>`;
   } else if (q.type === "ox") {
     html += `<div class="ox-row">
-      <div class="ox-box ${revealed && q.answer === "O" ? "correct" : ""}">O</div>
-      <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}">X</div>
+      <div class="ox-box ${revealed && q.answer === "O" ? "correct" : ""}" data-choice-click>O</div>
+      <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}" data-choice-click>X</div>
     </div>`;
   }
 
   if (revealed) {
-    html += `<div class="answer-box">
-      <div class="answer-label">정답</div>
-      <div>${escapeHtml(q.answer || "")}</div>
-      ${q.altAnswers ? `<div class="explanation">인정 답안: ${escapeHtml(q.altAnswers)}</div>` : ""}
-      ${q.explanation ? `<div class="explanation">${escapeHtml(q.explanation)}</div>` : ""}
-    </div>`;
+    let box = "";
+    if (q.type === "short") {
+      box += `<div class="answer-label">정답</div><div>${escapeHtml(q.answer || "")}</div>`;
+      if (q.altAnswers) box += `<div class="explanation">인정 답안: ${escapeHtml(q.altAnswers)}</div>`;
+    }
+    if (q.explanation) box += `<div class="explanation">${escapeHtml(q.explanation)}</div>`;
+    if (box) html += `<div class="answer-box">${box}</div>`;
   }
 
   document.getElementById("question-card").innerHTML = html;
+
+  // mcq/ox는 보기를 클릭하면 바로 정답 공개
+  if (!revealed) {
+    document.querySelectorAll("[data-choice-click]").forEach(el => {
+      el.addEventListener("click", reveal);
+    });
+  }
 }
 
 function toggleFullscreen() {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen();
   else document.exitFullscreen();
-}
-
-// ---------- PPTX 내보내기 (화면 스크린샷 방식) ----------
-async function exportPptx() {
-  const overlay = document.getElementById("loading-overlay");
-  const progressEl = document.getElementById("loading-progress");
-  overlay.classList.remove("hidden");
-
-  const includeAnswers = confirm("정답 화면도 슬라이드에 포함할까요? (확인=포함, 취소=문제만)");
-  const savedIdx = curIdx, savedRevealed = revealed;
-  const pptx = new PptxGenJS();
-  pptx.defineLayout({ name: "WIDE", width: 10, height: 5.63 });
-  pptx.layout = "WIDE";
-
-  try {
-    for (let i = 0; i < currentSet.questions.length; i++) {
-      curIdx = i;
-      revealed = false;
-      renderQuestion();
-      progressEl.innerText = `${i + 1} / ${currentSet.questions.length} (문제)`;
-      await waitForImages();
-      await addCaptureSlide(pptx);
-
-      if (includeAnswers) {
-        revealed = true;
-        renderQuestion();
-        progressEl.innerText = `${i + 1} / ${currentSet.questions.length} (정답)`;
-        await waitForImages();
-        await addCaptureSlide(pptx);
-      }
-    }
-    await pptx.writeFile({ fileName: `${currentSet.title}.pptx` });
-  } catch (e) {
-    alert("PPTX 생성 중 문제가 발생했어요: " + e.message);
-  } finally {
-    curIdx = savedIdx; revealed = savedRevealed; renderQuestion();
-    overlay.classList.add("hidden");
-  }
-}
-
-function waitForImages() {
-  const imgs = document.querySelectorAll("#question-capture img");
-  return Promise.all(Array.from(imgs).map(img => img.complete ? Promise.resolve() :
-    new Promise(res => { img.onload = res; img.onerror = res; })));
-}
-
-async function addCaptureSlide(pptx) {
-  const el = document.getElementById("question-capture");
-  const canvas = await html2canvas(el, { useCORS: true, backgroundColor: "#F3EEFF", scale: 2 });
-  const dataUrl = canvas.toDataURL("image/png");
-  const slide = pptx.addSlide();
-  slide.addImage({ data: dataUrl, x: 0, y: 0, w: 10, h: 5.63 });
 }
 
 // ---------- 유틸 ----------
