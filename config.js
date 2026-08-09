@@ -30,37 +30,41 @@ function setBgVars(settings) {
   if (settings.bgColor1) root.setProperty("--bg-page-1", settings.bgColor1);
   if (settings.bgColor2) root.setProperty("--bg-page-2", settings.bgColor2);
   if (settings.buttonColor) root.setProperty("--btn-accent", settings.buttonColor);
-  if (settings.fontName) root.setProperty("--font-question", `'${settings.fontName}', 'Pretendard', sans-serif`);
+  if (settings.questionFontName) root.setProperty("--font-question", `'${settings.questionFontName}', 'Pretendard', sans-serif`);
+  if (settings.choiceFontName) root.setProperty("--font-choice", `'${settings.choiceFontName}', 'Pretendard', sans-serif`);
   if (settings.questionFontSize) root.setProperty("--font-size-question", settings.questionFontSize + "px");
   if (settings.choiceFontSize) root.setProperty("--font-size-choice", settings.choiceFontSize + "px");
-  applyFontEmbed(settings.fontUrl);
+  applyFontEmbed(settings.questionFontUrl, "question");
+  applyFontEmbed(settings.choiceFontUrl, "choice");
 }
 
 // "폰트 임베드" 값이 URL인지, @font-face 같은 CSS 코드 조각인지 자동 구분해서 적용
-function applyFontEmbed(value) {
+function applyFontEmbed(value, key) {
   if (!value) return;
   const isRawCss = value.includes("{") || value.includes("@font-face") || value.includes("@import");
+  const styleId = "custom-font-style-" + key;
+  const linkId = "custom-font-link-" + key;
 
   if (isRawCss) {
-    let style = document.getElementById("custom-font-style");
+    let style = document.getElementById(styleId);
     if (!style) {
       style = document.createElement("style");
-      style.id = "custom-font-style";
+      style.id = styleId;
       document.head.appendChild(style);
     }
     if (style.textContent !== value) style.textContent = value;
-    const link = document.getElementById("custom-font-link");
+    const link = document.getElementById(linkId);
     if (link) link.remove();
   } else {
-    let link = document.getElementById("custom-font-link");
+    let link = document.getElementById(linkId);
     if (!link) {
       link = document.createElement("link");
-      link.id = "custom-font-link";
+      link.id = linkId;
       link.rel = "stylesheet";
       document.head.appendChild(link);
     }
     if (link.href !== value) link.href = value;
-    const style = document.getElementById("custom-font-style");
+    const style = document.getElementById(styleId);
     if (style) style.remove();
   }
 }

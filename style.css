@@ -26,6 +26,7 @@
 
   --btn-accent: #DCCBFF; /* 관리자 페이지에서 컬러피커로 바꿀 수 있는 버튼 공통 색 */
   --font-question: 'Jua', 'Pretendard', sans-serif; /* 관리자 페이지에서 바꿀 수 있는 문제 폰트 */
+  --font-choice: 'Jua', 'Pretendard', sans-serif;   /* 관리자 페이지에서 바꿀 수 있는 보기 폰트 */
   --font-size-question: 44px;
   --font-size-choice: 16px;
 
@@ -205,7 +206,7 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
 .choice-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .choice-display {
   padding: 14px; border-radius: 12px; border: 1.5px solid var(--border-soft);
-  font-size: var(--font-size-choice); text-align: left; cursor: pointer; transition: border-color .15s, background .15s;
+  font-family: var(--font-choice); font-size: var(--font-size-choice); text-align: left; cursor: pointer; transition: border-color .15s, background .15s;
 }
 .choice-display:hover { border-color: var(--btn-accent); }
 .choice-display.correct { border-color: var(--btn-accent); background: color-mix(in srgb, var(--btn-accent) 35%, white); font-weight: 700; }
@@ -214,13 +215,14 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
 .ox-box {
   width: 100px; height: 100px; border-radius: 20px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 40px; font-weight: 900; border: 2px solid var(--border-soft);
+  font-family: var(--font-choice); font-size: 40px; font-weight: 900; border: 2px solid var(--border-soft);
   cursor: pointer; transition: border-color .15s, background .15s;
 }
 .ox-box:hover { border-color: var(--btn-accent); }
 .ox-box.correct { border-color: var(--btn-accent); background: color-mix(in srgb, var(--btn-accent) 35%, white); color: var(--text-main); }
 
 .short-answer-display {
+  font-family: var(--font-choice);
   font-size: 34px; font-weight: 800; text-align: center;
   padding: 22px; border-radius: 16px; margin: 22px 0 0;
   border: 2px solid var(--btn-accent);
