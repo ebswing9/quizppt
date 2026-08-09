@@ -35,7 +35,9 @@
   --text-faint: #A79BC9;
 }
 
-* { box-sizing: border-box; font-family: var(--font-question); }
+* { box-sizing: border-box; }
+body { font-family: var(--font-choice); }
+h1, h2, h3, h4 { font-family: var(--font-question); }
 
 body {
   margin: 0;
