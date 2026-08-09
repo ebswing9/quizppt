@@ -38,13 +38,21 @@
         <label>버튼 색 <input type="color" id="btn-color"></label>
       </div>
       <label class="field-label">폰트 즐겨찾기</label>
-      <select id="font-preset-select" style="margin-bottom:8px;">
-        <option value="">직접 입력...</option>
-      </select>
+      <div style="display:flex; gap:8px;">
+        <select id="font-preset-select" style="flex:1;">
+          <option value="">직접 입력...</option>
+        </select>
+        <button class="btn-danger btn-sm" id="btn-delete-font-preset" type="button">선택한 즐겨찾기 삭제</button>
+      </div>
       <label class="field-label">폰트 이름 (CSS font-family 값, 예: Gaegu)</label>
       <input type="text" id="font-name" placeholder="예: Gaegu">
-      <label class="field-label">폰트 임베드 링크 (구글 폰트, 눈누 등에서 복사한 &lt;link&gt; 주소)</label>
-      <input type="text" id="font-url" placeholder="예: https://fonts.googleapis.com/css2?family=Gaegu&display=swap">
+      <label class="field-label">폰트 임베드 — 구글 폰트 링크(URL) 또는 눈누 등에서 받은 @font-face 코드 전체를 그대로 붙여넣으세요</label>
+      <textarea id="font-url" style="min-height:90px; font-family:monospace; font-size:13px;" placeholder="예1) https://fonts.googleapis.com/css2?family=Gaegu&display=swap
+예2) @font-face { font-family: 'Aggravo'; src: url('...') format('woff'); font-weight:300; font-display:swap; }"></textarea>
+      <div class="color-row" style="margin-top:12px;">
+        <label>문제 폰트 크기(px) <input type="number" id="q-font-size" style="width:70px;" min="16" max="100"></label>
+        <label>보기 폰트 크기(px) <input type="number" id="c-font-size" style="width:70px;" min="10" max="40"></label>
+      </div>
       <div style="margin-top:12px;">
         <button class="btn-gold btn-sm" id="btn-save-colors">색상·폰트 저장</button>
         <button class="btn-ghost btn-sm" id="btn-add-font-preset">현재 폰트를 즐겨찾기에 추가</button>
@@ -136,6 +144,8 @@ async function loadSettings() {
     document.getElementById("btn-color").value = res.settings.buttonColor || "#DCCBFF";
     document.getElementById("font-name").value = res.settings.fontName || "Jua";
     document.getElementById("font-url").value = res.settings.fontUrl || "";
+    document.getElementById("q-font-size").value = res.settings.questionFontSize || 44;
+    document.getElementById("c-font-size").value = res.settings.choiceFontSize || 16;
     try { fontPresets = JSON.parse(res.settings.fontPresets || "[]"); } catch (e) { fontPresets = []; }
     renderFontPresetSelect();
   }
@@ -164,11 +174,21 @@ document.getElementById("font-preset-select").addEventListener("change", (e) => 
 document.getElementById("btn-add-font-preset").addEventListener("click", () => {
   const name = document.getElementById("font-name").value.trim();
   const url = document.getElementById("font-url").value.trim();
-  if (!name || !url) { alert("폰트 이름과 링크를 먼저 입력해주세요."); return; }
+  if (!name || !url) { alert("폰트 이름과 링크(또는 코드)를 먼저 입력해주세요."); return; }
   if (fontPresets.some(p => p.name === name)) { alert("이미 즐겨찾기에 있는 이름이에요."); return; }
   fontPresets.push({ name, url });
   renderFontPresetSelect();
   alert("즐겨찾기에 추가했어요. '색상·폰트 저장'을 눌러야 최종 저장돼요.");
+});
+
+document.getElementById("btn-delete-font-preset").addEventListener("click", () => {
+  const sel = document.getElementById("font-preset-select");
+  if (sel.value === "") { alert("삭제할 즐겨찾기를 드롭다운에서 먼저 선택해주세요."); return; }
+  const idx = Number(sel.value);
+  if (!confirm(`"${fontPresets[idx].name}" 즐겨찾기를 삭제할까요?`)) return;
+  fontPresets.splice(idx, 1);
+  renderFontPresetSelect();
+  alert("삭제했어요. '색상·폰트 저장'을 눌러야 최종 저장돼요.");
 });
 
 document.getElementById("btn-save-colors").addEventListener("click", async () => {
@@ -177,7 +197,9 @@ document.getElementById("btn-save-colors").addEventListener("click", async () =>
   const buttonColor = document.getElementById("btn-color").value;
   const fontName = document.getElementById("font-name").value.trim();
   const fontUrl = document.getElementById("font-url").value.trim();
-  await apiPost("saveSettings", { password: sessionPassword, bgColor1, bgColor2, buttonColor, fontName, fontUrl, fontPresets: JSON.stringify(fontPresets) });
+  const questionFontSize = document.getElementById("q-font-size").value;
+  const choiceFontSize = document.getElementById("c-font-size").value;
+  await apiPost("saveSettings", { password: sessionPassword, bgColor1, bgColor2, buttonColor, fontName, fontUrl, fontPresets: JSON.stringify(fontPresets), questionFontSize, choiceFontSize });
   localStorage.removeItem("quiz_bgColors");
   await applyBackgroundColors();
   alert("색상·폰트가 저장됐어요.");

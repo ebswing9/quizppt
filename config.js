@@ -31,7 +31,27 @@ function setBgVars(settings) {
   if (settings.bgColor2) root.setProperty("--bg-page-2", settings.bgColor2);
   if (settings.buttonColor) root.setProperty("--btn-accent", settings.buttonColor);
   if (settings.fontName) root.setProperty("--font-question", `'${settings.fontName}', 'Pretendard', sans-serif`);
-  if (settings.fontUrl) {
+  if (settings.questionFontSize) root.setProperty("--font-size-question", settings.questionFontSize + "px");
+  if (settings.choiceFontSize) root.setProperty("--font-size-choice", settings.choiceFontSize + "px");
+  applyFontEmbed(settings.fontUrl);
+}
+
+// "폰트 임베드" 값이 URL인지, @font-face 같은 CSS 코드 조각인지 자동 구분해서 적용
+function applyFontEmbed(value) {
+  if (!value) return;
+  const isRawCss = value.includes("{") || value.includes("@font-face") || value.includes("@import");
+
+  if (isRawCss) {
+    let style = document.getElementById("custom-font-style");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "custom-font-style";
+      document.head.appendChild(style);
+    }
+    if (style.textContent !== value) style.textContent = value;
+    const link = document.getElementById("custom-font-link");
+    if (link) link.remove();
+  } else {
     let link = document.getElementById("custom-font-link");
     if (!link) {
       link = document.createElement("link");
@@ -39,7 +59,9 @@ function setBgVars(settings) {
       link.rel = "stylesheet";
       document.head.appendChild(link);
     }
-    if (link.href !== settings.fontUrl) link.href = settings.fontUrl;
+    if (link.href !== value) link.href = value;
+    const style = document.getElementById("custom-font-style");
+    if (style) style.remove();
   }
 }
 
