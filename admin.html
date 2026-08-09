@@ -36,8 +36,15 @@
         <label>배경색 1 <input type="color" id="bg-color-1"></label>
         <label>배경색 2 <input type="color" id="bg-color-2"></label>
         <label>버튼 색 <input type="color" id="btn-color"></label>
-        <button class="btn-gold btn-sm" id="btn-save-colors">색상 저장</button>
+      </div>
+      <label class="field-label">폰트 이름 (CSS font-family 값, 예: Gaegu)</label>
+      <input type="text" id="font-name" placeholder="예: Gaegu">
+      <label class="field-label">폰트 임베드 링크 (구글 폰트, 눈누 등에서 복사한 &lt;link&gt; 주소)</label>
+      <input type="text" id="font-url" placeholder="예: https://fonts.googleapis.com/css2?family=Gaegu&display=swap">
+      <div style="margin-top:12px;">
+        <button class="btn-gold btn-sm" id="btn-save-colors">색상·폰트 저장</button>
         <button class="btn-ghost btn-sm" id="btn-backup">전체 백업 다운로드</button>
+        <a href="index.html" target="_blank"><button class="btn-ghost btn-sm" type="button">퀴즈 보기 (index) ↗</button></a>
       </div>
     </div>
 
@@ -120,16 +127,20 @@ async function loadSettings() {
     document.getElementById("bg-color-1").value = res.settings.bgColor1 || "#F3EEFF";
     document.getElementById("bg-color-2").value = res.settings.bgColor2 || "#EAF6FF";
     document.getElementById("btn-color").value = res.settings.buttonColor || "#DCCBFF";
+    document.getElementById("font-name").value = res.settings.fontName || "Jua";
+    document.getElementById("font-url").value = res.settings.fontUrl || "";
   }
 }
 document.getElementById("btn-save-colors").addEventListener("click", async () => {
   const bgColor1 = document.getElementById("bg-color-1").value;
   const bgColor2 = document.getElementById("bg-color-2").value;
   const buttonColor = document.getElementById("btn-color").value;
-  await apiPost("saveSettings", { password: sessionPassword, bgColor1, bgColor2, buttonColor });
+  const fontName = document.getElementById("font-name").value.trim();
+  const fontUrl = document.getElementById("font-url").value.trim();
+  await apiPost("saveSettings", { password: sessionPassword, bgColor1, bgColor2, buttonColor, fontName, fontUrl });
   localStorage.removeItem("quiz_bgColors");
   await applyBackgroundColors();
-  alert("색상이 저장됐어요.");
+  alert("색상·폰트가 저장됐어요.");
 });
 
 document.getElementById("btn-backup").addEventListener("click", async () => {
@@ -210,7 +221,8 @@ async function moveSet(i, dir) {
 document.getElementById("btn-new-set").addEventListener("click", () => openEditor(null));
 document.getElementById("btn-cancel-edit").addEventListener("click", closeEditor);
 document.getElementById("btn-add-question").addEventListener("click", () => {
-  editingQuestions.push({ type: "mcq", question: "", image: "", choices: ["", ""], correctIndex: 0, answer: "", altAnswers: "", explanation: "" });
+  editingQuestions.forEach(q => q.collapsed = true); // 기존 문제는 자동으로 접기
+  editingQuestions.push({ type: "mcq", question: "", image: "", choices: ["", ""], correctIndex: 0, answer: "", altAnswers: "", explanation: "", collapsed: false });
   renderEditor();
 });
 document.getElementById("btn-save-set").addEventListener("click", saveSet);
@@ -223,7 +235,8 @@ async function openEditor(id) {
     document.getElementById("set-title").value = res.set.title;
     editingQuestions = res.set.questions.map(q => ({
       ...q,
-      correctIndex: q.type === "mcq" ? (q.choices || []).indexOf(q.answer) : 0
+      correctIndex: q.type === "mcq" ? (q.choices || []).indexOf(q.answer) : 0,
+      collapsed: false
     }));
     document.getElementById("editor-title-label").innerText = "세트 편집";
   } else {
@@ -242,6 +255,8 @@ function closeEditor() {
   editingQuestions = [];
 }
 
+const TYPE_LABEL = { mcq: "객관식", short: "주관식", ox: "OX" };
+
 function renderEditor() {
   const wrap = document.getElementById("questions-wrap");
   wrap.innerHTML = "";
@@ -249,54 +264,70 @@ function renderEditor() {
     const item = document.createElement("div");
     item.className = "q-editor-item";
 
+    // ---- 헤더 (접기/펼치기 + 순서변경 + 삭제) ----
     let inner = `
-      <button class="btn-danger btn-sm" style="position:absolute; top:12px; right:12px;" data-remove-q="${idx}">삭제</button>
-      <select data-qidx="${idx}" data-field="type" style="width:auto; display:inline-block; margin-bottom:10px;">
-        <option value="mcq" ${q.type === "mcq" ? "selected" : ""}>객관식</option>
-        <option value="short" ${q.type === "short" ? "selected" : ""}>주관식</option>
-        <option value="ox" ${q.type === "ox" ? "selected" : ""}>OX</option>
-      </select>
-      <label class="field-label">문제</label>
-      <textarea data-qidx="${idx}" data-field="question" placeholder="문제를 입력하세요">${escapeHtml(q.question)}</textarea>
-
-      <label class="field-label">이미지 (선택)</label>
-      <input type="file" accept="image/*" data-qidx="${idx}" data-field="image-upload">
-      ${q.image ? `<img class="img-preview" src="${q.image}">` : ""}
+      <div class="q-editor-header" data-toggle-collapse="${idx}">
+        <span class="q-editor-headline">문제 ${idx + 1} · ${TYPE_LABEL[q.type]} ${q.question ? "— " + escapeHtml(q.question.slice(0, 24)) + (q.question.length > 24 ? "…" : "") : ""}</span>
+        <span class="q-editor-header-btns">
+          <button class="btn-ghost btn-sm" data-move-q="${idx}:-1" title="위로">↑</button>
+          <button class="btn-ghost btn-sm" data-move-q="${idx}:1" title="아래로">↓</button>
+          <button class="btn-danger btn-sm" data-remove-q="${idx}">삭제</button>
+          <span class="q-editor-caret">${q.collapsed ? "▸" : "▾"}</span>
+        </span>
+      </div>
     `;
 
-    if (q.type === "mcq") {
-      inner += `<label class="field-label">보기 (동그라미 = 정답)</label>`;
-      q.choices.forEach((c, cidx) => {
+    if (!q.collapsed) {
+      inner += `<div class="q-editor-body">`;
+      inner += `
+        <select data-qidx="${idx}" data-field="type" style="width:auto; display:inline-block; margin-bottom:10px;">
+          <option value="mcq" ${q.type === "mcq" ? "selected" : ""}>객관식</option>
+          <option value="short" ${q.type === "short" ? "selected" : ""}>주관식</option>
+          <option value="ox" ${q.type === "ox" ? "selected" : ""}>OX</option>
+        </select>
+        <label class="field-label">문제</label>
+        <textarea data-qidx="${idx}" data-field="question" placeholder="문제를 입력하세요">${escapeHtml(q.question)}</textarea>
+
+        <label class="field-label">이미지 (선택)</label>
+        <input type="file" accept="image/*" data-qidx="${idx}" data-field="image-upload">
+        ${q.image ? `<img class="img-preview" src="${q.image}">` : ""}
+      `;
+
+      if (q.type === "mcq") {
+        inner += `<label class="field-label">보기 (동그라미 = 정답)</label>`;
+        q.choices.forEach((c, cidx) => {
+          inner += `
+            <div class="choice-row">
+              <input type="radio" name="correct-${idx}" data-qidx="${idx}" data-field="mcq-correct" data-cidx="${cidx}" ${q.correctIndex === cidx ? "checked" : ""}>
+              <input type="text" data-qidx="${idx}" data-field="choice" data-cidx="${cidx}" value="${escapeHtml(c)}" placeholder="보기 ${cidx + 1}">
+              <button class="btn-ghost btn-sm" data-remove-choice="${idx}:${cidx}">삭제</button>
+            </div>
+          `;
+        });
+        inner += `<button class="btn-ghost btn-sm" data-add-choice="${idx}">+ 보기 추가</button>`;
+      } else if (q.type === "ox") {
         inner += `
+          <label class="field-label">정답</label>
           <div class="choice-row">
-            <input type="radio" name="correct-${idx}" data-qidx="${idx}" data-field="mcq-correct" data-cidx="${cidx}" ${q.correctIndex === cidx ? "checked" : ""}>
-            <input type="text" data-qidx="${idx}" data-field="choice" data-cidx="${cidx}" value="${escapeHtml(c)}" placeholder="보기 ${cidx + 1}">
-            <button class="btn-ghost btn-sm" data-remove-choice="${idx}:${cidx}">삭제</button>
+            <label><input type="radio" name="ox-${idx}" data-qidx="${idx}" data-field="ox-answer" value="O" ${q.answer === "O" ? "checked" : ""}> O</label>
+            <label style="margin-left:16px;"><input type="radio" name="ox-${idx}" data-qidx="${idx}" data-field="ox-answer" value="X" ${q.answer === "X" ? "checked" : ""}> X</label>
           </div>
         `;
-      });
-      inner += `<button class="btn-ghost btn-sm" data-add-choice="${idx}">+ 보기 추가</button>`;
-    } else if (q.type === "ox") {
-      inner += `
-        <label class="field-label">정답</label>
-        <div class="choice-row">
-          <label><input type="radio" name="ox-${idx}" data-qidx="${idx}" data-field="ox-answer" value="O" ${q.answer === "O" ? "checked" : ""}> O</label>
-          <label style="margin-left:16px;"><input type="radio" name="ox-${idx}" data-qidx="${idx}" data-field="ox-answer" value="X" ${q.answer === "X" ? "checked" : ""}> X</label>
-        </div>
-      `;
-    } else {
-      inner += `
-        <label class="field-label">정답</label>
-        <input type="text" data-qidx="${idx}" data-field="answer" value="${escapeHtml(q.answer)}" placeholder="모범 답안">
-        <label class="field-label">추가로 인정할 답안 (선택)</label>
-        <input type="text" data-qidx="${idx}" data-field="altAnswers" value="${escapeHtml(q.altAnswers)}" placeholder="예: 삼투압, 삼투현상">
-      `;
-    }
+      } else {
+        inner += `
+          <label class="field-label">정답</label>
+          <input type="text" data-qidx="${idx}" data-field="answer" value="${escapeHtml(q.answer)}" placeholder="모범 답안">
+          <label class="field-label">추가로 인정할 답안 (선택)</label>
+          <input type="text" data-qidx="${idx}" data-field="altAnswers" value="${escapeHtml(q.altAnswers)}" placeholder="예: 삼투압, 삼투현상">
+        `;
+      }
 
-    inner += `
-      <label class="field-label">해설 (선택)</label>
-      <textarea data-qidx="${idx}" data-field="explanation" placeholder="정답 화면에 함께 보여줄 해설">${escapeHtml(q.explanation || "")}</textarea>
-    `;
+      inner += `
+        <label class="field-label">해설 (선택)</label>
+        <textarea data-qidx="${idx}" data-field="explanation" placeholder="정답 화면에 함께 보여줄 해설">${escapeHtml(q.explanation || "")}</textarea>
+      `;
+      inner += `</div>`;
+    }
 
     item.innerHTML = inner;
     wrap.appendChild(item);
@@ -336,20 +367,38 @@ document.getElementById("questions-wrap").addEventListener("change", async (e) =
   }
 });
 
-// 문제/보기 삭제, 보기 추가 (클릭 위임)
+// 문제 접기/펼치기, 순서변경, 문제/보기 삭제, 보기 추가 (클릭 위임)
 document.getElementById("questions-wrap").addEventListener("click", (e) => {
+  if (e.target.dataset.moveQ !== undefined) {
+    const [idx, dir] = e.target.dataset.moveQ.split(":").map(Number);
+    const j = idx + dir;
+    if (j >= 0 && j < editingQuestions.length) {
+      [editingQuestions[idx], editingQuestions[j]] = [editingQuestions[j], editingQuestions[idx]];
+      renderEditor();
+    }
+    return;
+  }
   if (e.target.dataset.removeQ !== undefined) {
     editingQuestions.splice(Number(e.target.dataset.removeQ), 1);
     renderEditor();
+    return;
   }
   if (e.target.dataset.addChoice !== undefined) {
     editingQuestions[Number(e.target.dataset.addChoice)].choices.push("");
     renderEditor();
+    return;
   }
   if (e.target.dataset.removeChoice !== undefined) {
     const [qidx, cidx] = e.target.dataset.removeChoice.split(":").map(Number);
     editingQuestions[qidx].choices.splice(cidx, 1);
     if (editingQuestions[qidx].correctIndex >= editingQuestions[qidx].choices.length) editingQuestions[qidx].correctIndex = 0;
+    renderEditor();
+    return;
+  }
+  const toggleEl = e.target.closest("[data-toggle-collapse]");
+  if (toggleEl) {
+    const idx = Number(toggleEl.dataset.toggleCollapse);
+    editingQuestions[idx].collapsed = !editingQuestions[idx].collapsed;
     renderEditor();
   }
 });

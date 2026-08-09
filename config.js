@@ -23,13 +23,24 @@ async function apiPost(action, body = {}) {
   return res.json();
 }
 
-// 사이트 전역 배경색 적용 (관리자 페이지에서 설정한 값)
+// 사이트 전역 배경색/버튼색/폰트 적용 (관리자 페이지에서 설정한 값)
 function setBgVars(settings) {
   if (!settings) return;
   const root = document.documentElement.style;
   if (settings.bgColor1) root.setProperty("--bg-page-1", settings.bgColor1);
   if (settings.bgColor2) root.setProperty("--bg-page-2", settings.bgColor2);
   if (settings.buttonColor) root.setProperty("--btn-accent", settings.buttonColor);
+  if (settings.fontName) root.setProperty("--font-question", `'${settings.fontName}', 'Pretendard', sans-serif`);
+  if (settings.fontUrl) {
+    let link = document.getElementById("custom-font-link");
+    if (!link) {
+      link = document.createElement("link");
+      link.id = "custom-font-link";
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
+    }
+    if (link.href !== settings.fontUrl) link.href = settings.fontUrl;
+  }
 }
 
 async function applyBackgroundColors() {
