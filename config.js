@@ -29,6 +29,7 @@ function setBgVars(settings) {
   const root = document.documentElement.style;
   if (settings.bgColor1) root.setProperty("--bg-page-1", settings.bgColor1);
   if (settings.bgColor2) root.setProperty("--bg-page-2", settings.bgColor2);
+  if (settings.buttonColor) root.setProperty("--btn-accent", settings.buttonColor);
 }
 
 async function applyBackgroundColors() {
