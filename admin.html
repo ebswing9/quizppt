@@ -378,7 +378,7 @@ document.getElementById("btn-new-set").addEventListener("click", () => openEdito
 document.getElementById("btn-cancel-edit").addEventListener("click", closeEditor);
 document.getElementById("btn-add-question").addEventListener("click", () => {
   editingQuestions.forEach(q => q.collapsed = true); // 기존 문제는 자동으로 접기
-  editingQuestions.push({ type: "mcq", question: "", image: "", choices: ["", ""], correctIndex: 0, answer: "", altAnswers: "", explanation: "", collapsed: false });
+  editingQuestions.push({ type: "mcq", question: "", image: "", choices: ["", ""], correctIndex: 0, answer: "", altAnswers: "", hint: "", explanation: "", collapsed: false });
   renderEditor();
 });
 document.getElementById("btn-save-set").addEventListener("click", saveSet);
@@ -475,6 +475,8 @@ function renderEditor() {
           <input type="text" data-qidx="${idx}" data-field="answer" value="${escapeHtml(q.answer)}" placeholder="모범 답안">
           <label class="field-label">추가로 인정할 답안 (선택)</label>
           <input type="text" data-qidx="${idx}" data-field="altAnswers" value="${escapeHtml(q.altAnswers)}" placeholder="예: 삼투압, 삼투현상">
+          <label class="field-label">힌트 (선택, 정답 공개 전 학생들에게 보여줄 단서)</label>
+          <textarea data-qidx="${idx}" data-field="hint" placeholder="예: 삼투 O 자로 시작해요">${escapeHtml(q.hint || "")}</textarea>
         `;
       }
 
@@ -498,7 +500,7 @@ document.getElementById("questions-wrap").addEventListener("input", (e) => {
   const q = editingQuestions[idx];
   if (field === "choice") {
     q.choices[e.target.dataset.cidx] = e.target.value;
-  } else if (field === "question" || field === "answer" || field === "altAnswers" || field === "explanation") {
+  } else if (field === "question" || field === "answer" || field === "altAnswers" || field === "hint" || field === "explanation") {
     q[field] = e.target.value;
   }
 });
@@ -574,6 +576,7 @@ async function saveSet() {
     } else {
       out.answer = q.answer || "";
       out.altAnswers = q.altAnswers || "";
+      out.hint = q.hint || "";
     }
     return out;
   });
@@ -605,6 +608,8 @@ function questionCaptureHtml(q, revealed) {
       <div class="ox-box ${revealed && q.answer === "O" ? "correct" : ""}">O</div>
       <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}">X</div>
     </div>`;
+  } else if (q.type === "short" && q.hint) {
+    html += `<div class="hint-box">💡 ${escapeHtml(q.hint)}</div>`;
   }
 
   if (revealed) {
