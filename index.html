@@ -13,7 +13,6 @@
 <div id="view-list" class="view">
   <div class="container">
     <h1 class="page-title">QUIZ</h1>
-    <p class="page-sub">보여줄 세트를 선택하세요</p>
     <div id="set-list" class="set-list"></div>
   </div>
 </div>
@@ -167,7 +166,7 @@ function renderQuestion() {
       <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}" data-choice-click>X</div>
     </div>`;
   } else if (q.type === "short" && q.hint) {
-    html += `<div class="hint-box">💡 ${escapeHtml(q.hint)}</div>`;
+    html += `<div class="hint-box">${escapeHtml(q.hint)}</div>`;
   }
 
   if (revealed) {
