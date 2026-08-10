@@ -25,6 +25,9 @@
   --accent-red-dark: #C94F79;
 
   --btn-accent: #DCCBFF; /* 관리자 페이지에서 컬러피커로 바꿀 수 있는 버튼 공통 색 */
+  --btn-accent-tint-35: #F3EDFF; /* --btn-accent를 흰색과 섞은 값들 (JS가 계산해서 갱신함) */
+  --btn-accent-tint-25: #F6F2FF;
+  --btn-accent-tint-14: #FAF8FF;
   --font-question: 'Jua', 'Pretendard', sans-serif; /* 관리자 페이지에서 바꿀 수 있는 문제 폰트 */
   --font-choice: 'Jua', 'Pretendard', sans-serif;   /* 관리자 페이지에서 바꿀 수 있는 보기 폰트 */
   --font-size-question: 44px;
@@ -218,11 +221,11 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
 }
 .choice-display:hover {
   border-color: var(--btn-accent);
-  background: color-mix(in srgb, var(--btn-accent) 14%, white);
+  background: var(--btn-accent-tint-14);
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(36,27,61,0.08);
 }
-.choice-display.correct { border-color: var(--btn-accent); background: color-mix(in srgb, var(--btn-accent) 35%, white); font-weight: 700; }
+.choice-display.correct { border-color: var(--btn-accent); background: var(--btn-accent-tint-35); font-weight: 700; }
 
 .ox-row { display: flex; gap: 20px; justify-content: center; margin-top: 20px; }
 .ox-box {
@@ -233,18 +236,18 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
 }
 .ox-box:hover {
   border-color: var(--btn-accent);
-  background: color-mix(in srgb, var(--btn-accent) 14%, white);
+  background: var(--btn-accent-tint-14);
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(36,27,61,0.08);
 }
-.ox-box.correct { border-color: var(--btn-accent); background: color-mix(in srgb, var(--btn-accent) 35%, white); color: var(--text-main); }
+.ox-box.correct { border-color: var(--btn-accent); background: var(--btn-accent-tint-35); color: var(--text-main); }
 
 .short-answer-display {
   font-family: var(--font-choice);
   font-size: 34px; font-weight: 800; text-align: center;
   padding: 22px; border-radius: 16px; margin: 22px 0 0;
   border: 2px solid var(--btn-accent);
-  background: color-mix(in srgb, var(--btn-accent) 25%, white);
+  background: var(--btn-accent-tint-25);
   color: var(--text-main);
 }
 

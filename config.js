@@ -23,13 +23,34 @@ async function apiPost(action, body = {}) {
   return res.json();
 }
 
+// hex 색상 문자열을 흰색과 섞은 rgb() 문자열로 변환 (color-mix() 대신 사용 — html2canvas가 color-mix()를 못 읽어서 PPTX 캡처가 깨지는 문제 방지)
+function hexToRgb(hex) {
+  hex = (hex || "#DCCBFF").replace("#", "");
+  if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+  const num = parseInt(hex, 16) || 0;
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+function mixWithWhite(hex, pct) {
+  const { r, g, b } = hexToRgb(hex);
+  const ratio = pct / 100;
+  const mr = Math.round(r * ratio + 255 * (1 - ratio));
+  const mg = Math.round(g * ratio + 255 * (1 - ratio));
+  const mb = Math.round(b * ratio + 255 * (1 - ratio));
+  return `rgb(${mr}, ${mg}, ${mb})`;
+}
+
 // 사이트 전역 배경색/버튼색/폰트 적용 (관리자 페이지에서 설정한 값)
 function setBgVars(settings) {
   if (!settings) return;
   const root = document.documentElement.style;
   if (settings.bgColor1) root.setProperty("--bg-page-1", settings.bgColor1);
   if (settings.bgColor2) root.setProperty("--bg-page-2", settings.bgColor2);
-  if (settings.buttonColor) root.setProperty("--btn-accent", settings.buttonColor);
+  if (settings.buttonColor) {
+    root.setProperty("--btn-accent", settings.buttonColor);
+    root.setProperty("--btn-accent-tint-35", mixWithWhite(settings.buttonColor, 35));
+    root.setProperty("--btn-accent-tint-25", mixWithWhite(settings.buttonColor, 25));
+    root.setProperty("--btn-accent-tint-14", mixWithWhite(settings.buttonColor, 14));
+  }
   if (settings.questionFontName) root.setProperty("--font-question", `'${settings.questionFontName}', 'Pretendard', sans-serif`);
   if (settings.choiceFontName) root.setProperty("--font-choice", `'${settings.choiceFontName}', 'Pretendard', sans-serif`);
   if (settings.questionFontSize) root.setProperty("--font-size-question", settings.questionFontSize + "px");
