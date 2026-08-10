@@ -26,7 +26,7 @@
   <div class="container">
     <h1 class="page-title">
       퀴즈 관리자
-      <a href="https://ebswing9.github.io/quizppt" target="_blank" title="QUIZ" style="text-decoration:none; font-size:0.6em; vertical-align:middle; margin-left:6px;">🔗</a>
+      <a href="index.html" target="_blank" title="퀴즈 보기 (index)" style="text-decoration:none; font-size:0.6em; vertical-align:middle; margin-left:6px;">🔗</a>
     </h1>
     <div style="text-align:center; margin-bottom:16px;">
       <button class="btn-ghost btn-sm" id="btn-logout">로그아웃</button>
@@ -612,36 +612,43 @@ async function saveSet() {
 
 // ---------- PPTX 내보내기 (배경 포함, 고정 16:9 캡처) ----------
 function questionCaptureHtml(q, revealed) {
-  let html = "";
-  if (q.image) html += `<img class="q-image" src="${q.image}" crossorigin="anonymous">`;
-  html += `<div class="question-text">${escapeHtml(q.question)}</div>`;
+  const imageHtml = q.image ? `<img class="q-image" src="${q.image}" crossorigin="anonymous">` : "";
+  const questionHtml = `<div class="question-text">${escapeHtml(q.question)}</div>`;
 
+  let middleHtml = "";
   if (q.type === "mcq") {
-    html += `<div class="choice-list">`;
-    (q.choices || []).forEach(c => {
+    middleHtml = `<div class="choice-list">` + (q.choices || []).map(c => {
       const isCorrect = revealed && c === q.answer;
-      html += `<div class="choice-display ${isCorrect ? "correct" : ""}">${escapeHtml(c)}</div>`;
-    });
-    html += `</div>`;
+      return `<div class="choice-display ${isCorrect ? "correct" : ""}">${escapeHtml(c)}</div>`;
+    }).join("") + `</div>`;
   } else if (q.type === "ox") {
-    html += `<div class="ox-row">
+    middleHtml = `<div class="ox-row">
       <div class="ox-box ${revealed && q.answer === "O" ? "correct" : ""}">O</div>
       <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}">X</div>
     </div>`;
   } else if (q.type === "short" && q.hint && !revealed) {
-    html += `<div class="hint-box">${escapeHtml(q.hint)}</div>`;
+    middleHtml = `<div class="hint-box">${escapeHtml(q.hint)}</div>`;
   }
 
+  let bottomHtml = "";
   if (revealed) {
     if (q.type === "short") {
-      html += `<div class="short-answer-display">${escapeHtml(q.answer || "")}</div>`;
+      bottomHtml += `<div class="short-answer-display">${escapeHtml(q.answer || "")}</div>`;
     }
     let box = "";
     if (q.type === "short" && q.altAnswers) box += `<div class="explanation">인정 답안: ${escapeHtml(q.altAnswers)}</div>`;
     if (q.explanation) box += `<div class="explanation">${escapeHtml(q.explanation)}</div>`;
-    if (box) html += `<div class="answer-box">${box}</div>`;
+    if (box) bottomHtml += `<div class="answer-box">${box}</div>`;
   }
-  return html;
+
+  // 항상 4칸(이미지/문제/보기/정답)을 고정된 위치로 렌더링 — 내용이 없어도 자리는 유지돼서
+  // 슬라이드마다 문제/보기 위치가 흔들리지 않음
+  return `
+    <div class="pptx-row pptx-row-image">${imageHtml}</div>
+    <div class="pptx-row pptx-row-question">${questionHtml}</div>
+    <div class="pptx-row pptx-row-middle">${middleHtml}</div>
+    <div class="pptx-row pptx-row-answer">${bottomHtml}</div>
+  `;
 }
 
 async function exportPptxForSet(id) {
