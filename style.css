@@ -256,13 +256,13 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
 }
 
 .answer-box {
-  margin-top: 24px; padding: 20px 22px; border-radius: 16px;
+  margin-top: 24px; padding: 10px 14px; border-radius: 12px;
   border: 1.5px solid var(--border-soft);
   background: var(--bg-card-alt); text-align: left;
   font-family: var(--font-choice);
 }
-.answer-box .explanation { color: var(--text-muted); font-size: var(--font-size-choice); line-height: 1.6; }
-.answer-box .explanation + .explanation { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-soft); }
+.answer-box .explanation { color: var(--text-muted); font-size: calc(var(--font-size-choice) * 0.6); line-height: 1.5; }
+.answer-box .explanation + .explanation { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-soft); }
 
 .bottom-actions { display: flex; gap: 10px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
 
