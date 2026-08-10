@@ -612,43 +612,42 @@ async function saveSet() {
 
 // ---------- PPTX 내보내기 (배경 포함, 고정 16:9 캡처) ----------
 function questionCaptureHtml(q, revealed) {
-  const imageHtml = q.image ? `<img class="q-image" src="${q.image}" crossorigin="anonymous">` : "";
-  const questionHtml = `<div class="question-text">${escapeHtml(q.question)}</div>`;
+  const blocks = [];
 
-  let middleHtml = "";
+  if (q.image) blocks.push(`<div class="pptx-row-image"><img class="q-image" src="${q.image}" crossorigin="anonymous"></div>`);
+
+  blocks.push(`<div class="pptx-row-question"><div class="question-text">${escapeHtml(q.question)}</div></div>`);
+
   if (q.type === "mcq") {
-    middleHtml = `<div class="choice-list">` + (q.choices || []).map(c => {
+    const choicesHtml = (q.choices || []).map(c => {
       const isCorrect = revealed && c === q.answer;
       return `<div class="choice-display ${isCorrect ? "correct" : ""}">${escapeHtml(c)}</div>`;
-    }).join("") + `</div>`;
+    }).join("");
+    blocks.push(`<div class="pptx-row-middle"><div class="choice-list">${choicesHtml}</div></div>`);
   } else if (q.type === "ox") {
-    middleHtml = `<div class="ox-row">
+    blocks.push(`<div class="pptx-row-middle"><div class="ox-row">
       <div class="ox-box ${revealed && q.answer === "O" ? "correct" : ""}">O</div>
       <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}">X</div>
-    </div>`;
+    </div></div>`);
   } else if (q.type === "short" && q.hint && !revealed) {
-    middleHtml = `<div class="hint-box">${escapeHtml(q.hint)}</div>`;
+    blocks.push(`<div class="pptx-row-middle"><div class="hint-box">${escapeHtml(q.hint)}</div></div>`);
   }
 
-  let bottomHtml = "";
   if (revealed) {
+    let answerInner = "";
     if (q.type === "short") {
-      bottomHtml += `<div class="short-answer-display">${escapeHtml(q.answer || "")}</div>`;
+      answerInner += `<div class="short-answer-display">${escapeHtml(q.answer || "")}</div>`;
     }
     let box = "";
     if (q.type === "short" && q.altAnswers) box += `<div class="explanation">인정 답안: ${escapeHtml(q.altAnswers)}</div>`;
     if (q.explanation) box += `<div class="explanation">${escapeHtml(q.explanation)}</div>`;
-    if (box) bottomHtml += `<div class="answer-box">${box}</div>`;
+    if (box) answerInner += `<div class="answer-box">${box}</div>`;
+    if (answerInner) blocks.push(`<div class="pptx-row-answer">${answerInner}</div>`);
   }
 
-  // 항상 4칸(이미지/문제/보기/정답)을 고정된 위치로 렌더링 — 내용이 없어도 자리는 유지돼서
-  // 슬라이드마다 문제/보기 위치가 흔들리지 않음
-  return `
-    <div class="pptx-row pptx-row-image">${imageHtml}</div>
-    <div class="pptx-row pptx-row-question">${questionHtml}</div>
-    <div class="pptx-row pptx-row-middle">${middleHtml}</div>
-    <div class="pptx-row pptx-row-answer">${bottomHtml}</div>
-  `;
+  // 내용이 있는 블록만 위에서부터 순서대로 쌓임 — 빈 칸을 강제로 만들지 않아서
+  // 문제는 항상 같은 위치(이미지 바로 아래 또는 맨 위)에서 시작하고, 정답은 필요한 만큼만 아래에 붙음
+  return blocks.join("");
 }
 
 async function exportPptxForSet(id) {
