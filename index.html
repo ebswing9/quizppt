@@ -165,7 +165,7 @@ function renderQuestion() {
       <div class="ox-box ${revealed && q.answer === "O" ? "correct" : ""}" data-choice-click>O</div>
       <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}" data-choice-click>X</div>
     </div>`;
-  } else if (q.type === "short" && q.hint) {
+  } else if (q.type === "short" && q.hint && !revealed) {
     html += `<div class="hint-box">${escapeHtml(q.hint)}</div>`;
   }
 
