@@ -294,9 +294,9 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
   height: 600px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 26px;
-  padding: 50px 40px;
+  justify-content: flex-start;
+  gap: 22px;
+  padding: 110px 40px 30px;
   text-align: center;
   overflow: hidden; /* 내용이 넘쳐도 카드 밖으로 삐져나가지 않고 카드 안에서 잘리게 */
 }
