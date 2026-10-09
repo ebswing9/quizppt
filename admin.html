@@ -47,6 +47,10 @@
           <label>버튼 색 <input type="color" id="btn-color"></label>
         </div>
 
+        <h3>테마 프리셋</h3>
+        <div class="preset-row" id="theme-presets"></div>
+        <p class="field-note">누르면 색이 바뀌어 바로 미리 볼 수 있어요. 마음에 들면 아래 저장 버튼을 눌러주세요.</p>
+
         <h3>문제 폰트</h3>
         <div class="color-row">
           <select id="font-select-q" style="flex:1; min-width:160px;"></select>
@@ -296,6 +300,32 @@ document.getElementById("btn-add-font-preset").addEventListener("click", () => {
   });
 });
 
+// ---------- 테마 프리셋 ----------
+const THEME_PRESETS = [
+  { emoji: "🍇", name: "포도",       bg1: "#F3EEFF", bg2: "#EAF6FF", btn: "#DCCBFF" },
+  { emoji: "🍓", name: "딸기우유",   bg1: "#FFF0F5", bg2: "#FFE9F0", btn: "#FFC2D6" },
+  { emoji: "🍃", name: "민트",       bg1: "#E8F8F2", bg2: "#EEF7E6", btn: "#A8E6D5" },
+  { emoji: "🍋", name: "레몬",       bg1: "#FFFBE6", bg2: "#FFF1CC", btn: "#FFE08A" },
+  { emoji: "🍑", name: "복숭아",     bg1: "#FFF1EA", bg2: "#FFF8E6", btn: "#FFC9B5" },
+  { emoji: "🌊", name: "바다",       bg1: "#E6F4FF", bg2: "#E3FBF7", btn: "#A9D6FF" },
+  { emoji: "📓", name: "노트",       bg1: "#FBF7EE", bg2: "#F3EEE0", btn: "#EAD9B0" }
+];
+(function renderThemePresets() {
+  const wrap = document.getElementById("theme-presets");
+  THEME_PRESETS.forEach(p => {
+    const b = document.createElement("button");
+    b.className = "preset-chip btn-ghost";
+    b.innerHTML = `<span class="preset-swatch" style="background:linear-gradient(135deg, ${p.bg1} 50%, ${p.btn} 50%)"></span>${p.emoji} ${p.name}`;
+    b.addEventListener("click", () => {
+      document.getElementById("bg-color-1").value = p.bg1;
+      document.getElementById("bg-color-2").value = p.bg2;
+      document.getElementById("btn-color").value = p.btn;
+      setBgVars({ bgColor1: p.bg1, bgColor2: p.bg2, buttonColor: p.btn });
+    });
+    wrap.appendChild(b);
+  });
+})();
+
 document.getElementById("btn-save-colors").addEventListener("click", async () => {
   const bgColor1 = document.getElementById("bg-color-1").value;
   const bgColor2 = document.getElementById("bg-color-2").value;
@@ -426,9 +456,24 @@ function closeEditor() {
   editingQuestions = [];
 }
 
-const TYPE_LABEL = { ox: "OX", mcq: "객관식", short: "주관식", match: "연결형" };
-const TYPE_ORDER = ["ox", "mcq", "short", "match"]; // 라디오 표시 순서
-const MAX_PAIRS = 5; // 연결형 최대 짝 수 (슬라이드 한 장에 들어가는 개수)
+const TYPE_LABEL = { ox: "OX", mcq: "객관식", short: "주관식", match: "연결형", order: "순서 맞추기", sort: "분류", blank: "빈칸" };
+const TYPE_ORDER = ["ox", "mcq", "short", "match", "order", "sort", "blank"]; // 라디오 표시 순서
+const MAX_PAIRS = 5;       // 연결형 최대 짝 수 (슬라이드 한 장에 들어가는 개수)
+const MAX_ORDER = 6;       // 순서 맞추기 최대 항목 수
+const MAX_GROUPS = 3;      // 분류 최대 분류 수
+const MAX_SORT_ITEMS = 8;  // 분류형 전체 항목 수
+
+function groupItems(g) { return (g.itemsText || "").split("\n").map(s => s.trim()).filter(Boolean); }
+function validateQuestion(q) {
+  if (q.type === "match" && q.pairs.filter(p => p.left.trim() && p.right.trim()).length < 2) return "연결형은 짝을 2개 이상 입력해주세요.";
+  if (q.type === "order" && q.items.filter(s => s.trim()).length < 2) return "순서 맞추기는 항목을 2개 이상 입력해주세요.";
+  if (q.type === "sort") {
+    if (q.groups.some(g => !g.name.trim() || groupItems(g).length === 0)) return "분류 이름과 항목을 모두 입력해주세요.";
+    if (q.groups.reduce((n, g) => n + groupItems(g).length, 0) > MAX_SORT_ITEMS) return `분류형 항목은 전체 ${MAX_SORT_ITEMS}개까지 가능해요.`;
+  }
+  if (q.type === "blank" && !/\[[^\]]+\]/.test(q.question || "")) return "빈칸 채우기는 문제 칸에서 가릴 부분을 [대괄호]로 표시해주세요.";
+  return "";
+}
 
 function newQuestion() {
   return normalizeQuestion({ type: "ox", question: "", image: "", answer: "O", altAnswers: "", hint: "", explanation: "", collapsed: false });
@@ -441,6 +486,12 @@ function normalizeQuestion(q) {
   const pr = Array.isArray(q.pairs) ? q.pairs.map(p => ({ left: p.left || "", right: p.right || "" })) : [];
   while (pr.length < 2) pr.push({ left: "", right: "" });
   q.pairs = pr;
+  const it = Array.isArray(q.items) ? q.items.slice() : [];
+  while (it.length < 2) it.push("");
+  q.items = it;
+  const gr = Array.isArray(q.groups) ? q.groups.map(g => ({ name: g.name || "", itemsText: g.itemsText != null ? g.itemsText : (g.items || []).join("\n") })) : [];
+  while (gr.length < 2) gr.push({ name: "", itemsText: "" });
+  q.groups = gr;
   if (!(q.correctIndex >= 0)) q.correctIndex = 0;
   return q;
 }
@@ -485,7 +536,7 @@ function renderEditor() {
           inner += `
             <div class="choice-row">
               <input type="radio" name="correct-${idx}" data-qidx="${idx}" data-field="mcq-correct" data-cidx="${cidx}" ${q.correctIndex === cidx ? "checked" : ""}>
-              <input type="text" data-qidx="${idx}" data-field="choice" data-cidx="${cidx}" value="${escapeHtml(c)}" placeholder="보기 ${cidx + 1}">
+              <input type="text" data-qidx="${idx}" data-field="choice" data-cidx="${cidx}" value="${escapeAttr(c)}" placeholder="보기 ${cidx + 1}">
               <button class="btn-ghost btn-sm" data-remove-choice="${idx}:${cidx}">삭제</button>
             </div>
           `;
@@ -499,15 +550,43 @@ function renderEditor() {
             <label style="margin-left:16px;"><input type="radio" name="ox-${idx}" data-qidx="${idx}" data-field="ox-answer" value="X" ${q.answer === "X" ? "checked" : ""}> X</label>
           </div>
         `;
+      } else if (q.type === "order") {
+        inner += `<label class="field-label">항목 — 정답 순서대로 위에서부터 입력하세요. 슬라이드에서는 자동으로 섞여요. (2~${MAX_ORDER}개)</label>`;
+        q.items.forEach((t, oidx) => {
+          inner += `
+            <div class="pair-row">
+              <span class="pair-no">${oidx + 1}</span>
+              <input type="text" data-qidx="${idx}" data-field="order-item" data-oidx="${oidx}" value="${escapeAttr(t)}" placeholder="${oidx + 1}번째 항목">
+              <button class="btn-ghost btn-sm" data-remove-order="${idx}:${oidx}">삭제</button>
+            </div>
+          `;
+        });
+        if (q.items.length < MAX_ORDER) inner += `<button class="btn-ghost btn-sm" data-add-order="${idx}">+ 항목 추가</button>`;
+      } else if (q.type === "sort") {
+        inner += `<label class="field-label">분류 이름과, 그 분류에 속하는 항목들(한 줄에 하나)을 입력하세요. 항목은 전체 ${MAX_SORT_ITEMS}개까지예요.</label>`;
+        q.groups.forEach((g, gidx) => {
+          inner += `
+            <div class="q-editor-item" style="margin-top:10px;">
+              <div class="pair-row">
+                <input type="text" data-qidx="${idx}" data-field="group-name" data-gidx="${gidx}" value="${escapeAttr(g.name)}" placeholder="분류 ${gidx + 1} 이름 (예: 산성)">
+                <button class="btn-ghost btn-sm" data-remove-group="${idx}:${gidx}">삭제</button>
+              </div>
+              <textarea data-qidx="${idx}" data-field="group-items" data-gidx="${gidx}" placeholder="항목을 한 줄에 하나씩">${escapeHtml(g.itemsText)}</textarea>
+            </div>
+          `;
+        });
+        if (q.groups.length < MAX_GROUPS) inner += `<button class="btn-ghost btn-sm" style="margin-top:10px;" data-add-group="${idx}">+ 분류 추가</button>`;
+      } else if (q.type === "blank") {
+        inner += `<p class="field-note">위 '문제' 칸에 문장을 쓰고, 가릴 부분을 [대괄호]로 감싸세요. 예) 광합성은 [엽록체]에서 일어난다. 슬라이드에서는 빈칸을 눌러 하나씩 열 수 있어요.</p>`;
       } else if (q.type === "match") {
         inner += `<label class="field-label">짝 맞추기 — 같은 줄의 왼쪽·오른쪽이 정답 짝이에요. 슬라이드에서는 왼쪽·오른쪽이 서로 다른 색의 두 열로 나뉘어 표시되고, 오른쪽 순서는 자동으로 섞여요.</label>`;
         q.pairs.forEach((p, pidx) => {
           inner += `
             <div class="pair-row">
               <span class="pair-no">${pidx + 1}</span>
-              <input type="text" data-qidx="${idx}" data-field="pair-left" data-pidx="${pidx}" value="${escapeHtml(p.left)}" placeholder="왼쪽 항목">
+              <input type="text" data-qidx="${idx}" data-field="pair-left" data-pidx="${pidx}" value="${escapeAttr(p.left)}" placeholder="왼쪽 항목">
               <span class="pair-arrow">↔</span>
-              <input type="text" data-qidx="${idx}" data-field="pair-right" data-pidx="${pidx}" value="${escapeHtml(p.right)}" placeholder="짝이 되는 항목">
+              <input type="text" data-qidx="${idx}" data-field="pair-right" data-pidx="${pidx}" value="${escapeAttr(p.right)}" placeholder="짝이 되는 항목">
               <button class="btn-ghost btn-sm" data-remove-pair="${idx}:${pidx}">삭제</button>
             </div>
           `;
@@ -516,9 +595,9 @@ function renderEditor() {
       } else {
         inner += `
           <label class="field-label">정답</label>
-          <input type="text" data-qidx="${idx}" data-field="answer" value="${escapeHtml(q.answer)}" placeholder="모범 답안">
+          <input type="text" data-qidx="${idx}" data-field="answer" value="${escapeAttr(q.answer)}" placeholder="모범 답안">
           <label class="field-label">추가로 인정할 답안 (선택)</label>
-          <input type="text" data-qidx="${idx}" data-field="altAnswers" value="${escapeHtml(q.altAnswers)}" placeholder="예: 삼투압, 삼투현상">
+          <input type="text" data-qidx="${idx}" data-field="altAnswers" value="${escapeAttr(q.altAnswers)}" placeholder="예: 삼투압, 삼투현상">
           <label class="field-label">힌트 (선택, 정답 공개 전 학생들에게 보여줄 단서)</label>
           <textarea data-qidx="${idx}" data-field="hint" placeholder="예: 삼투 O 자로 시작해요">${escapeHtml(q.hint || "")}</textarea>
         `;
@@ -546,6 +625,12 @@ document.getElementById("questions-wrap").addEventListener("input", (e) => {
     q.choices[e.target.dataset.cidx] = e.target.value;
   } else if (field === "pair-left" || field === "pair-right") {
     q.pairs[e.target.dataset.pidx][field === "pair-left" ? "left" : "right"] = e.target.value;
+  } else if (field === "order-item") {
+    q.items[e.target.dataset.oidx] = e.target.value;
+  } else if (field === "group-name") {
+    q.groups[e.target.dataset.gidx].name = e.target.value;
+  } else if (field === "group-items") {
+    q.groups[e.target.dataset.gidx].itemsText = e.target.value;
   } else if (field === "question" || field === "answer" || field === "altAnswers" || field === "hint" || field === "explanation") {
     q[field] = e.target.value;
   }
@@ -606,6 +691,32 @@ document.getElementById("questions-wrap").addEventListener("click", (e) => {
     renderEditor();
     return;
   }
+  if (e.target.dataset.addOrder !== undefined) {
+    const q = editingQuestions[Number(e.target.dataset.addOrder)];
+    if (q.items.length < MAX_ORDER) q.items.push("");
+    renderEditor();
+    return;
+  }
+  if (e.target.dataset.removeOrder !== undefined) {
+    const [qi, oi] = e.target.dataset.removeOrder.split(":").map(Number);
+    if (editingQuestions[qi].items.length <= 2) { alert("항목은 최소 2개가 필요해요."); return; }
+    editingQuestions[qi].items.splice(oi, 1);
+    renderEditor();
+    return;
+  }
+  if (e.target.dataset.addGroup !== undefined) {
+    const q = editingQuestions[Number(e.target.dataset.addGroup)];
+    if (q.groups.length < MAX_GROUPS) q.groups.push({ name: "", itemsText: "" });
+    renderEditor();
+    return;
+  }
+  if (e.target.dataset.removeGroup !== undefined) {
+    const [qi, gi] = e.target.dataset.removeGroup.split(":").map(Number);
+    if (editingQuestions[qi].groups.length <= 2) { alert("분류는 최소 2개가 필요해요."); return; }
+    editingQuestions[qi].groups.splice(gi, 1);
+    renderEditor();
+    return;
+  }
   if (e.target.dataset.addPair !== undefined) {
     const q = editingQuestions[Number(e.target.dataset.addPair)];
     if (q.pairs.length < MAX_PAIRS) q.pairs.push({ left: "", right: "" });
@@ -638,10 +749,8 @@ async function saveSet() {
   if (editingQuestions.length === 0) { alert("문제를 1개 이상 추가해주세요."); return; }
 
   for (let i = 0; i < editingQuestions.length; i++) {
-    const q = editingQuestions[i];
-    if (q.type === "match" && q.pairs.filter(p => p.left.trim() && p.right.trim()).length < 2) {
-      alert(`문제 ${i + 1}: 연결형은 짝을 2개 이상 입력해주세요.`); return;
-    }
+    const err = validateQuestion(editingQuestions[i]);
+    if (err) { alert(`문제 ${i + 1}: ${err}`); return; }
   }
 
   const questions = editingQuestions.map(q => {
@@ -654,6 +763,14 @@ async function saveSet() {
     } else if (q.type === "match") {
       out.pairs = q.pairs.filter(p => p.left.trim() && p.right.trim()).map(p => ({ left: p.left.trim(), right: p.right.trim() }));
       out.answer = "";
+    } else if (q.type === "order") {
+      out.items = q.items.map(s => s.trim()).filter(Boolean);
+      out.answer = "";
+    } else if (q.type === "sort") {
+      out.groups = q.groups.map(g => ({ name: g.name.trim(), items: groupItems(g) }));
+      out.answer = "";
+    } else if (q.type === "blank") {
+      out.answer = (q.question.match(/\[[^\]]+\]/g) || []).map(s => s.slice(1, -1)).join(", ");
     } else {
       out.answer = q.answer || "";
       out.altAnswers = q.altAnswers || "";
@@ -677,7 +794,7 @@ function questionCaptureHtml(q, revealed) {
 
   if (q.image) blocks.push(`<div class="pptx-row-image"><img class="q-image" src="${q.image}" crossorigin="anonymous"></div>`);
 
-  blocks.push(`<div class="pptx-row-question"><div class="question-text">${escapeHtml(q.question)}</div></div>`);
+  blocks.push(`<div class="pptx-row-question"><div class="question-text">${q.type === "blank" ? blankQuestionHtml(q.question, revealed, null, false) : escapeHtml(q.question)}</div></div>`);
 
   if (q.type === "mcq") {
     const choicesHtml = (q.choices || []).map(c => {
@@ -690,6 +807,10 @@ function questionCaptureHtml(q, revealed) {
       <div class="ox-box ${revealed && q.answer === "O" ? "correct" : ""}">O</div>
       <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}">X</div>
     </div></div>`);
+  } else if (q.type === "order") {
+    blocks.push(`<div class="pptx-row-middle">${orderHtml(q, revealed)}</div>`);
+  } else if (q.type === "sort") {
+    blocks.push(`<div class="pptx-row-middle">${sortHtml(q, revealed)}</div>`);
   } else if (q.type === "match") {
     blocks.push(`<div class="pptx-row-middle">${matchHtml(q, revealed)}</div>`);
   } else if (q.type === "short" && q.hint && !revealed) {
@@ -767,6 +888,63 @@ async function addSlideCapture(pptx, el) {
   slide.addImage({ data: dataUrl, x: 0, y: 0, w: 10, h: 5.63 });
 }
 
+// ---------- 순서 맞추기 / 분류 / 빈칸 공통 ----------
+function seededOrder(key, n) {
+  let seed = 0;
+  for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const order = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  if (n > 1 && order.every((v, i) => v === i)) order.push(order.shift());
+  return order;
+}
+
+// 순서 맞추기: items는 정답 순서. order[k] = k번째 칸에 놓인 카드(정답 위치 번호)
+function orderInitial(q) { return seededOrder((q.question || "") + (q.items || []).join("|"), (q.items || []).length); }
+function orderRows(q, order, done) {
+  return order.map((it, k) => `<div class="order-slot"><span class="order-no">${k + 1}</span><div class="order-card${done ? " correct" : ""}" data-flip="o${it}" data-item="${it}"><span class="item-text">${escapeHtml(q.items[it])}</span></div></div>`).join("");
+}
+function orderHtml(q, revealed) {
+  const order = revealed ? q.items.map((_, i) => i) : orderInitial(q);
+  return `<div class="order-wrap"><div class="flip-area">${orderRows(q, order, revealed)}</div></div>`;
+}
+
+// 분류: groups = [{ name, items: [...] }]
+function sortItems(q) {
+  const out = [];
+  (q.groups || []).forEach((g, gi) => (g.items || []).forEach(t => out.push({ text: t, g: gi })));
+  return out;
+}
+function sortPoolOrder(q) { return seededOrder((q.question || "") + JSON.stringify(q.groups || []), sortItems(q).length); }
+function sortInner(q, assign, poolOrder, done) {
+  const items = sortItems(q);
+  const card = i => `<div class="sort-card${done ? " correct" : ""}" data-flip="s${i}" data-item="${i}"><span class="item-text">${escapeHtml(items[i].text)}</span></div>`;
+  const pool = poolOrder.filter(i => !(assign[i] >= 0)).map(card).join("");
+  const bins = (q.groups || []).map((g, gi) => `<div class="sort-bin" data-group="${gi}"><div class="sort-bin-name item-text">${escapeHtml(g.name)}</div><div class="sort-bin-body">${poolOrder.filter(i => assign[i] === gi).map(card).join("")}</div></div>`).join("");
+  return `<div class="sort-pool">${pool}</div><div class="sort-bins" style="grid-template-columns:repeat(${(q.groups || []).length},1fr)">${bins}</div>`;
+}
+function sortHtml(q, revealed) {
+  const assign = {};
+  sortItems(q).forEach((it, i) => { assign[i] = revealed ? it.g : -1; });
+  return `<div class="sort-wrap"><div class="flip-area">${sortInner(q, assign, sortPoolOrder(q), revealed)}</div></div>`;
+}
+
+// 빈칸: 문제 글의 [정답] 부분을 빈칸으로 바꿈
+function blankQuestionHtml(text, openAll, openSet, anim) {
+  const src = text || "", re = /\[([^\]]+)\]/g;
+  let out = "", last = 0, k = -1, di = 0, m;
+  while ((m = re.exec(src))) {
+    out += escapeHtml(src.slice(last, m.index));
+    k++;
+    const was = !!(openSet && openSet.has(k));
+    const fresh = openAll && anim && !was;
+    const delay = fresh ? (0.1 + di++ * 0.35) : 0;
+    out += `<span class="blank${(openAll || was) ? " open" : ""}${fresh ? " anim" : ""}" data-b="${k}" style="--d:${delay}s;--w:${Math.max(2, m[1].length)}"><span class="blank-word">${escapeHtml(m[1])}</span></span>`;
+    last = m.index + m[0].length;
+  }
+  return out + escapeHtml(src.slice(last));
+}
+
 // ---------- 연결형 (선 잇기) ----------
 // 오른쪽 항목 순서: 문제 내용으로 고정된 셔플 (같은 문제는 항상 같은 순서)
 function matchOrder(q) {
@@ -842,6 +1020,7 @@ function drawMatchLines(root) {
 }
 
 // ---------- 유틸 ----------
+function escapeAttr(str) { return escapeHtml(str).replace(/"/g, "&quot;"); }
 function escapeHtml(str) {
   const d = document.createElement("div");
   d.innerText = str == null ? "" : String(str);

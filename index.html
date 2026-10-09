@@ -22,15 +22,19 @@
   <div class="present-topbar">
     <div class="progress-text" id="progress-text">1 / 5</div>
     <div class="top-btns">
+      <button class="btn-ghost btn-sm" id="btn-jump">문제 이동</button>
       <button class="btn-ghost btn-sm" id="btn-restart">처음부터</button>
       <button class="btn-ghost btn-sm" id="btn-fullscreen">전체화면</button>
       <button class="btn-ghost btn-sm" id="btn-exit">목록으로</button>
     </div>
   </div>
 
+  <div id="jump-panel" class="jump-panel hidden"></div>
+
   <div id="question-capture">
     <div class="card question-card" id="question-card"></div>
     <div class="bottom-actions">
+      <button class="btn-ghost hidden" id="btn-hint">힌트 보기</button>
       <button class="btn-gold btn-block" id="btn-reveal">정답 보기</button>
       <button class="btn-primary btn-block hidden" id="btn-next">다음 문제 →</button>
     </div>
@@ -52,12 +56,21 @@ let revealed = false;
 
   document.getElementById("btn-reveal").addEventListener("click", reveal);
   document.getElementById("btn-next").addEventListener("click", nextQuestion);
-  document.getElementById("btn-restart").addEventListener("click", () => { curIdx = 0; revealed = false; matchLinks = {}; renderQuestion(); });
+  document.getElementById("btn-restart").addEventListener("click", () => { curIdx = 0; revealed = false; resetStates(); renderQuestion(); });
   document.getElementById("btn-exit").addEventListener("click", exitToList);
   document.getElementById("btn-fullscreen").addEventListener("click", toggleFullscreen);
+  document.getElementById("btn-jump").addEventListener("click", toggleJump);
+  document.getElementById("btn-hint").addEventListener("click", () => { hintStage[curIdx] = (hintStage[curIdx] || 0) + 1; renderQuestion(true); });
+  document.getElementById("jump-panel").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-jump]");
+    if (!b) return;
+    curIdx = Number(b.dataset.jump); revealed = false; closeJump(); renderQuestion();
+  });
+  document.addEventListener("click", (e) => { if (!e.target.closest("#jump-panel, #btn-jump")) closeJump(); });
 
   document.addEventListener("keydown", (e) => {
     if (document.getElementById("view-present").classList.contains("hidden")) return;
+    if (!document.getElementById("jump-panel").classList.contains("hidden")) { if (e.code === "Escape") closeJump(); return; }
     if (e.code === "Space") { e.preventDefault(); revealed ? nextQuestion() : reveal(); }
     if (e.code === "ArrowRight") nextQuestion();
     if (e.code === "ArrowLeft") prevQuestion();
@@ -116,7 +129,7 @@ async function startSet(id) {
     full = JSON.parse(cached);
   }
   currentSet = full;
-  matchLinks = {};
+  resetStates();
   curIdx = 0;
   revealed = false;
   document.getElementById("view-list").classList.add("hidden");
@@ -126,6 +139,7 @@ async function startSet(id) {
 }
 
 function exitToList() {
+  closeJump();
   document.getElementById("view-present").classList.add("hidden");
   document.getElementById("view-list").classList.remove("hidden");
   loadSetList();
@@ -144,15 +158,178 @@ function prevQuestion() {
   if (curIdx > 0) { curIdx--; revealed = false; renderQuestion(); }
 }
 
-function renderQuestion() {
+// ---------- 상태 / 애니메이션 도우미 ----------
+let orderState = {}, sortState = {}, blankOpen = {}, hintStage = {};
+function resetStates() { matchLinks = {}; orderState = {}; sortState = {}; blankOpen = {}; hintStage = {}; }
+const NEEDS_REVEAL = ["short", "match", "order", "sort", "blank"];
+
+// FLIP: 카드가 예전 자리에서 새 자리로 부드럽게 이동
+function flipRects(root) {
+  const m = {};
+  root.querySelectorAll("[data-flip]").forEach(el => { m[el.dataset.flip] = el.getBoundingClientRect(); });
+  return m;
+}
+function flipPlay(root, before, stagger) {
+  root.querySelectorAll("[data-flip]").forEach((el, idx) => {
+    const a = before[el.dataset.flip];
+    if (!a) return;
+    const b = el.getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top;
+    if (!dx && !dy) return;
+    el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: "none" }],
+      { duration: 480, delay: (stagger || 0) * idx, easing: "cubic-bezier(.3,1.3,.5,1)", fill: "backwards" });
+  });
+}
+
+// 주관식: 정답 글자가 하나씩 톡톡 / 단계별 힌트(초성 → 첫 글자)
+function answerCharsHtml(text) {
+  let i = 0;
+  return String(text).split(/(\s+)/).map(w => /^\s+$/.test(w) ? " " : (w ? `<span class="w">${[...w].map(c => `<span class="ch" style="--i:${i++}">${escapeHtml(c)}</span>`).join("")}</span>` : "")).join("");
+}
+const CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+function hintLettersHtml(answer, stage) {
+  let k = 0, firstDone = false;
+  const boxes = [...(answer || "").trim()].map(ch => {
+    if (/\s/.test(ch)) return `<span class="hint-gap"></span>`;
+    const code = ch.charCodeAt(0), hangul = code >= 0xAC00 && code <= 0xD7A3;
+    const full = stage >= 2 && !firstDone;
+    firstDone = true;
+    const shown = full ? ch : (hangul ? CHO[Math.floor((code - 0xAC00) / 588)] : "○");
+    return `<span class="hint-letter" style="--i:${k++}">${escapeHtml(shown)}</span>`;
+  }).join("");
+  return `<div class="hint-letters">${boxes}</div>`;
+}
+
+// ---------- 순서 맞추기 ----------
+function setupOrder(card) {
+  const wrap = card.querySelector(".order-wrap");
+  if (!wrap) return;
+  const q = currentSet.questions[curIdx];
+  const area = wrap.querySelector(".flip-area");
+  wrap.style.setProperty("--match-line", matchLineColor());
+  let order = (orderState[curIdx] = orderState[curIdx] || orderInitial(q));
+  let selItem = null, drag = null;
+  const render = done => {
+    const before = flipRects(area);
+    area.innerHTML = orderRows(q, order, done);
+    area.querySelectorAll(".order-card").forEach(el => el.classList.toggle("selected", Number(el.dataset.item) === selItem));
+    flipPlay(area, before, done ? 70 : 0);
+  };
+  if (revealed) { order = orderState[curIdx] = q.items.map((_, i) => i); render(true); return; }
+  const swap = (a, b) => { const x = order.indexOf(a), y = order.indexOf(b); [order[x], order[y]] = [order[y], order[x]]; };
+  const hitCard = e => { const h = document.elementFromPoint(e.clientX, e.clientY), s = h && h.closest(".order-slot"); return s ? s.querySelector(".order-card") : null; };
+  // 클릭 두 번(선택 → 다른 카드)으로 자리 바꾸기 / 카드를 끌어서 다른 카드 위에 놓아 자리 바꾸기
+  wrap.addEventListener("pointerdown", e => {
+    const el = e.target.closest(".order-card");
+    if (!el) return;
+    e.preventDefault();
+    wrap.setPointerCapture(e.pointerId);
+    drag = { el, x: e.clientX, y: e.clientY, moved: false };
+  });
+  wrap.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 8) return;
+    drag.moved = true;
+    drag.el.classList.add("dragging");
+    drag.el.style.transform = `translate(${dx}px,${dy}px)`;
+    const hit = hitCard(e);
+    area.querySelectorAll(".order-card").forEach(el => el.classList.toggle("drop-target", el === hit && el !== drag.el));
+  });
+  wrap.addEventListener("pointerup", e => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    const a = Number(d.el.dataset.item);
+    if (d.moved) { const t = hitCard(e); if (t && t !== d.el) swap(a, Number(t.dataset.item)); selItem = null; }
+    else if (selItem !== null && selItem !== a) { swap(selItem, a); selItem = null; }
+    else selItem = (selItem === a) ? null : a;
+    render(false);
+  });
+  wrap.addEventListener("pointercancel", () => { drag = null; render(false); });
+}
+
+// ---------- 분류 ----------
+function sortAssignFor(q) {
+  if (!sortState[curIdx]) { const a = {}; sortItems(q).forEach((_, i) => { a[i] = -1; }); sortState[curIdx] = a; }
+  return sortState[curIdx];
+}
+function setupSort(card) {
+  const wrap = card.querySelector(".sort-wrap");
+  if (!wrap) return;
+  const q = currentSet.questions[curIdx];
+  const items = sortItems(q), poolOrder = sortPoolOrder(q);
+  const area = wrap.querySelector(".flip-area");
+  const assign = sortAssignFor(q);
+  wrap.style.setProperty("--match-line", matchLineColor());
+  let sel = null, drag = null;
+  const render = (done, stagger) => {
+    const before = flipRects(area);
+    area.innerHTML = sortInner(q, assign, poolOrder, done);
+    area.querySelectorAll(".sort-card").forEach(el => el.classList.toggle("selected", Number(el.dataset.item) === sel));
+    wrap.classList.toggle("has-sel", sel !== null);
+    flipPlay(area, before, stagger || 0);
+  };
+  if (revealed) { items.forEach((it, i) => { assign[i] = it.g; }); render(true, 70); return; }
+  const place = (i, g) => { assign[i] = g; sel = null; render(false); };
+  const binAt = e => { const h = document.elementFromPoint(e.clientX, e.clientY); return h ? h.closest(".sort-bin") : null; };
+  // 카드를 끌어서 분류 상자에 놓기 / 카드 클릭 → 상자 클릭 / 상자 안 카드를 누르면 되돌리기
+  wrap.addEventListener("pointerdown", e => {
+    const el = e.target.closest(".sort-card");
+    if (el) { e.preventDefault(); wrap.setPointerCapture(e.pointerId); }
+    drag = { el, bin: e.target.closest(".sort-bin"), x: e.clientX, y: e.clientY, moved: false };
+  });
+  wrap.addEventListener("pointermove", e => {
+    if (!drag || !drag.el) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 8) return;
+    drag.moved = true;
+    drag.el.classList.add("dragging");
+    drag.el.style.transform = `translate(${dx}px,${dy}px)`;
+    const b = binAt(e);
+    wrap.querySelectorAll(".sort-bin").forEach(x => x.classList.toggle("drop-target", x === b));
+  });
+  wrap.addEventListener("pointerup", e => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (d.el && d.moved) {
+      const b = binAt(e), i = Number(d.el.dataset.item);
+      place(i, b ? Number(b.dataset.group) : -1);
+    } else if (d.el) {
+      const i = Number(d.el.dataset.item), inBin = !!d.bin;
+      if (sel !== null && inBin) place(sel, Number(d.bin.dataset.group));
+      else if (inBin) place(i, -1);
+      else { sel = (sel === i) ? null : i; render(false); }
+    } else if (d.bin && sel !== null) place(sel, Number(d.bin.dataset.group));
+  });
+  wrap.addEventListener("pointercancel", () => { drag = null; render(false); });
+}
+
+// ---------- 빈칸 채우기 ----------
+function setupBlank(card) {
+  const bl = card.querySelectorAll(".blank");
+  if (!bl.length) return;
+  const set = (blankOpen[curIdx] = blankOpen[curIdx] || new Set());
+  if (revealed) { bl.forEach(b => set.add(Number(b.dataset.b))); return; }
+  bl.forEach(b => b.addEventListener("click", () => {
+    if (b.classList.contains("open")) return;
+    set.add(Number(b.dataset.b));
+    b.style.setProperty("--d", "0s");
+    b.classList.add("anim", "open");
+  }));
+}
+
+function renderQuestion(noEnter) {
   const q = currentSet.questions[curIdx];
   document.getElementById("progress-text").innerText = `${curIdx + 1} / ${currentSet.questions.length}`;
-  document.getElementById("btn-reveal").classList.toggle("hidden", revealed || (q.type !== "short" && q.type !== "match"));
+  document.getElementById("btn-reveal").classList.toggle("hidden", revealed || !NEEDS_REVEAL.includes(q.type));
+  const stage = hintStage[curIdx] || 0;
+  const hintBtn = document.getElementById("btn-hint");
+  hintBtn.classList.toggle("hidden", revealed || q.type !== "short" || !(q.answer || "").trim() || stage >= 2);
+  hintBtn.innerText = stage === 0 ? "힌트 보기" : "힌트 더 보기";
   document.getElementById("btn-next").classList.toggle("hidden", !revealed);
 
   let html = "";
   if (q.image) html += `<img class="q-image" src="${q.image}" crossorigin="anonymous">`;
-  html += `<div class="question-text">${escapeHtml(q.question)}</div>`;
+  html += `<div class="question-text">${q.type === "blank" ? blankQuestionHtml(q.question, revealed, blankOpen[curIdx], true) : escapeHtml(q.question)}</div>`;
 
   if (q.type === "mcq") {
     html += `<div class="choice-list">`;
@@ -166,15 +343,21 @@ function renderQuestion() {
       <div class="ox-box ${revealed && q.answer === "O" ? "correct" : ""}" data-choice-click>O</div>
       <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}" data-choice-click>X</div>
     </div>`;
+  } else if (q.type === "order") {
+    html += `<div class="order-wrap"><div class="flip-area">${orderRows(q, orderState[curIdx] || orderInitial(q), false)}</div></div>`;
+  } else if (q.type === "sort") {
+    html += `<div class="sort-wrap"><div class="flip-area">${sortInner(q, sortAssignFor(q), sortPoolOrder(q), false)}</div></div>`;
   } else if (q.type === "match") {
     html += matchHtml(q, revealed);
   } else if (q.type === "short" && q.hint && !revealed) {
     html += `<div class="hint-box">${escapeHtml(q.hint)}</div>`;
   }
 
+  if (q.type === "short" && !revealed && stage > 0) html += hintLettersHtml(q.answer, stage);
+
   if (revealed) {
     if (q.type === "short") {
-      html += `<div class="short-answer-display">${escapeHtml(q.answer || "")}</div>`;
+      html += `<div class="short-answer-display">${answerCharsHtml(q.answer || "")}</div>`;
     }
     let box = "";
     if (q.type === "short" && q.altAnswers) box += `<div class="explanation">인정 답안: ${escapeHtml(q.altAnswers)}</div>`;
@@ -183,7 +366,11 @@ function renderQuestion() {
   }
 
   document.getElementById("question-card").innerHTML = html;
-  setupMatch(document.getElementById("question-card"));
+  const cardEl = document.getElementById("question-card");
+  cardEl.classList.toggle("reveal-anim", revealed);
+  cardEl.classList.remove("enter");
+  if (!revealed && !noEnter) { void cardEl.offsetWidth; cardEl.classList.add("enter"); }
+  setupMatch(cardEl); setupOrder(cardEl); setupSort(cardEl); setupBlank(cardEl);
 
   // mcq/ox는 보기를 클릭하면 바로 정답 공개
   if (!revealed) {
@@ -193,9 +380,80 @@ function renderQuestion() {
   }
 }
 
+const TYPE_LABEL = { ox: "OX", mcq: "객관식", short: "주관식", match: "연결형" };
+function closeJump() { document.getElementById("jump-panel").classList.add("hidden"); }
+function toggleJump() {
+  const panel = document.getElementById("jump-panel");
+  if (!panel.classList.contains("hidden")) { closeJump(); return; }
+  panel.innerHTML = currentSet.questions.map((q, i) => `
+    <button class="jump-item ${i === curIdx ? "current" : ""}" data-jump="${i}">
+      <span class="jump-no">${i + 1}</span>
+      <span class="jump-type">${TYPE_LABEL[q.type] || ""}</span>
+      <span class="jump-text">${escapeHtml((q.question || "").replace(/\s+/g, " ").slice(0, 40))}</span>
+    </button>`).join("");
+  panel.classList.remove("hidden");
+}
+
 function toggleFullscreen() {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen();
   else document.exitFullscreen();
+}
+
+// ---------- 순서 맞추기 / 분류 / 빈칸 공통 ----------
+function seededOrder(key, n) {
+  let seed = 0;
+  for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const order = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  if (n > 1 && order.every((v, i) => v === i)) order.push(order.shift());
+  return order;
+}
+
+// 순서 맞추기: items는 정답 순서. order[k] = k번째 칸에 놓인 카드(정답 위치 번호)
+function orderInitial(q) { return seededOrder((q.question || "") + (q.items || []).join("|"), (q.items || []).length); }
+function orderRows(q, order, done) {
+  return order.map((it, k) => `<div class="order-slot"><span class="order-no">${k + 1}</span><div class="order-card${done ? " correct" : ""}" data-flip="o${it}" data-item="${it}"><span class="item-text">${escapeHtml(q.items[it])}</span></div></div>`).join("");
+}
+function orderHtml(q, revealed) {
+  const order = revealed ? q.items.map((_, i) => i) : orderInitial(q);
+  return `<div class="order-wrap"><div class="flip-area">${orderRows(q, order, revealed)}</div></div>`;
+}
+
+// 분류: groups = [{ name, items: [...] }]
+function sortItems(q) {
+  const out = [];
+  (q.groups || []).forEach((g, gi) => (g.items || []).forEach(t => out.push({ text: t, g: gi })));
+  return out;
+}
+function sortPoolOrder(q) { return seededOrder((q.question || "") + JSON.stringify(q.groups || []), sortItems(q).length); }
+function sortInner(q, assign, poolOrder, done) {
+  const items = sortItems(q);
+  const card = i => `<div class="sort-card${done ? " correct" : ""}" data-flip="s${i}" data-item="${i}"><span class="item-text">${escapeHtml(items[i].text)}</span></div>`;
+  const pool = poolOrder.filter(i => !(assign[i] >= 0)).map(card).join("");
+  const bins = (q.groups || []).map((g, gi) => `<div class="sort-bin" data-group="${gi}"><div class="sort-bin-name item-text">${escapeHtml(g.name)}</div><div class="sort-bin-body">${poolOrder.filter(i => assign[i] === gi).map(card).join("")}</div></div>`).join("");
+  return `<div class="sort-pool">${pool}</div><div class="sort-bins" style="grid-template-columns:repeat(${(q.groups || []).length},1fr)">${bins}</div>`;
+}
+function sortHtml(q, revealed) {
+  const assign = {};
+  sortItems(q).forEach((it, i) => { assign[i] = revealed ? it.g : -1; });
+  return `<div class="sort-wrap"><div class="flip-area">${sortInner(q, assign, sortPoolOrder(q), revealed)}</div></div>`;
+}
+
+// 빈칸: 문제 글의 [정답] 부분을 빈칸으로 바꿈
+function blankQuestionHtml(text, openAll, openSet, anim) {
+  const src = text || "", re = /\[([^\]]+)\]/g;
+  let out = "", last = 0, k = -1, di = 0, m;
+  while ((m = re.exec(src))) {
+    out += escapeHtml(src.slice(last, m.index));
+    k++;
+    const was = !!(openSet && openSet.has(k));
+    const fresh = openAll && anim && !was;
+    const delay = fresh ? (0.1 + di++ * 0.35) : 0;
+    out += `<span class="blank${(openAll || was) ? " open" : ""}${fresh ? " anim" : ""}" data-b="${k}" style="--d:${delay}s;--w:${Math.max(2, m[1].length)}"><span class="blank-word">${escapeHtml(m[1])}</span></span>`;
+    last = m.index + m[0].length;
+  }
+  return out + escapeHtml(src.slice(last));
 }
 
 // ---------- 연결형 (선 잇기) ----------
@@ -264,7 +522,7 @@ function setupMatch(card) {
   const L = i => wrap.querySelector(`.match-left[data-pair="${i}"]`);
   const R = i => wrap.querySelector(`.match-right[data-pair="${i}"]`);
   const items = () => wrap.querySelectorAll(".match-item");
-  let sel = null, drag = null, temp = null;
+  let sel = null, drag = null, temp = null, fresh = null, pops = [];
 
   function draw() {
     const { svg, wr } = matchSizeSvg(wrap);
@@ -272,16 +530,27 @@ function setupMatch(card) {
     let html = "";
     if (revealed) {
       wrap.querySelectorAll(".match-left").forEach(l => { html += matchLineTag(matchPts(wr, l, R(l.dataset.pair)), color); });
-      items().forEach(el => el.classList.add("correct", "linked"));
+      items().forEach(el => { el.classList.remove("selected", "target"); el.classList.add("correct", "linked"); });
     } else {
-      Object.entries(links).forEach(([li, rp]) => { html += matchLineTag(matchPts(wr, L(li), R(rp)), color); });
+      Object.entries(links).forEach(([li, rp]) => {
+        const p = matchPts(wr, L(li), R(rp));
+        if (Number(li) === fresh) {
+          const len = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
+          html += matchLineTag(p, color, `style="stroke-dasharray:${len};stroke-dashoffset:${len};animation:match-draw .25s ease forwards"`);
+        } else html += matchLineTag(p, color);
+      });
+      fresh = null;
       if (temp) html += matchLineTag(temp, color, 'stroke-opacity=".5" stroke-dasharray="1 10"');
       const lSet = new Set(Object.keys(links).map(Number)), rSet = new Set(Object.values(links));
+      const active = (drag && drag.moved) ? drag.el : sel;
       items().forEach(el => {
         const p = Number(el.dataset.pair);
         el.classList.toggle("linked", el.dataset.side === "L" ? lSet.has(p) : rSet.has(p));
-        el.classList.toggle("selected", el === sel);
+        el.classList.toggle("selected", el === active);
+        el.classList.toggle("target", !!active && el.dataset.side !== active.dataset.side);
       });
+      pops.forEach(el => { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); setTimeout(() => el.classList.remove("pop"), 500); });
+      pops = [];
     }
     svg.innerHTML = html;
   }
@@ -310,6 +579,7 @@ function setupMatch(card) {
     const rp = Number(r.dataset.pair);
     Object.keys(links).forEach(k => { if (links[k] === rp) delete links[k]; });
     links[Number(l.dataset.pair)] = rp;
+    fresh = Number(l.dataset.pair); pops = [l, r];
   }
   function isLinked(el) {
     const p = Number(el.dataset.pair);
@@ -344,10 +614,13 @@ function setupMatch(card) {
     const wr = wrap.getBoundingClientRect(), r = drag.el.getBoundingClientRect();
     temp = { x1: (drag.el.dataset.side === "L" ? r.right : r.left) - wr.left, y1: r.top + r.height / 2 - wr.top, x2: e.clientX - wr.left, y2: e.clientY - wr.top };
     draw();
+    const hov = document.elementFromPoint(e.clientX, e.clientY), hit = hov && hov.closest(".match-item");
+    items().forEach(el => el.classList.toggle("drop-target", el === hit && el.dataset.side !== drag.el.dataset.side));
   });
   wrap.addEventListener("pointerup", e => {
     if (!drag) return;
     const d = drag; drag = null; temp = null;
+    items().forEach(el => el.classList.remove("drop-target"));
     const t = document.elementFromPoint(e.clientX, e.clientY);
     const target = t && t.closest(".match-item");
     if (d.moved) { if (target && target.dataset.side !== d.el.dataset.side) { connect(d.el, target); sel = null; } }
