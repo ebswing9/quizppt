@@ -52,7 +52,7 @@ let revealed = false;
 
   document.getElementById("btn-reveal").addEventListener("click", reveal);
   document.getElementById("btn-next").addEventListener("click", nextQuestion);
-  document.getElementById("btn-restart").addEventListener("click", () => { curIdx = 0; revealed = false; renderQuestion(); });
+  document.getElementById("btn-restart").addEventListener("click", () => { curIdx = 0; revealed = false; matchLinks = {}; renderQuestion(); });
   document.getElementById("btn-exit").addEventListener("click", exitToList);
   document.getElementById("btn-fullscreen").addEventListener("click", toggleFullscreen);
 
@@ -116,6 +116,7 @@ async function startSet(id) {
     full = JSON.parse(cached);
   }
   currentSet = full;
+  matchLinks = {};
   curIdx = 0;
   revealed = false;
   document.getElementById("view-list").classList.add("hidden");
@@ -182,7 +183,7 @@ function renderQuestion() {
   }
 
   document.getElementById("question-card").innerHTML = html;
-  drawMatchLines(document.getElementById("question-card"));
+  setupMatch(document.getElementById("question-card"));
 
   // mcq/ox는 보기를 클릭하면 바로 정답 공개
   if (!revealed) {
@@ -198,10 +199,7 @@ function toggleFullscreen() {
 }
 
 // ---------- 연결형 (선 잇기) ----------
-const MATCH_LABELS = ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ", "ㅂ"];
-const MATCH_COLORS = ["#7C5CFF", "#FF8A5C", "#17B892", "#E0558A", "#F2A900", "#3B9DFF"];
-
-// 오른쪽 항목 순서: 문제 내용으로 고정된 셔플 (정답 화면/PPTX에서도 같은 순서 유지)
+// 오른쪽 항목 순서: 문제 내용으로 고정된 셔플 (같은 문제는 항상 같은 순서)
 function matchOrder(q) {
   const pairs = q.pairs || [], n = pairs.length;
   let seed = 0;
@@ -210,51 +208,158 @@ function matchOrder(q) {
   const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   const order = pairs.map((_, i) => i);
   for (let i = n - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-  if (n > 1 && order.every((v, i) => v === i)) order.push(order.shift()); // 정답과 같은 줄에 놓이는 것 방지
+  if (n > 1 && order.every((v, i) => v === i)) order.push(order.shift());
   return order;
 }
 
 function matchHtml(q, revealed) {
   const pairs = q.pairs || [];
   const order = matchOrder(q);
-  const cls = revealed ? "correct" : "";
   let rows = "";
   pairs.forEach((p, i) => {
     const ri = order[i];
-    rows += `<div class="match-item match-left ${cls}" data-pair="${i}"><span class="match-badge">${i + 1}</span><span class="match-text">${escapeHtml(p.left)}</span></div>
+    rows += `<div class="match-item match-left" data-side="L" data-pair="${i}"><span class="match-text">${escapeHtml(p.left)}</span></div>
       <div></div>
-      <div class="match-item match-right ${cls}" data-pair="${ri}"><span class="match-badge">${MATCH_LABELS[i] || ""}</span><span class="match-text">${escapeHtml(pairs[ri].right)}</span></div>`;
+      <div class="match-item match-right" data-side="R" data-pair="${ri}"><span class="match-text">${escapeHtml(pairs[ri].right)}</span></div>`;
   });
-  return `<div class="match-wrap" data-match-reveal="${revealed ? 1 : 0}">${rows}<svg class="match-lines"></svg></div>`;
+  return `<div class="match-wrap" data-reveal="${revealed ? 1 : 0}">${rows}<svg class="match-lines"></svg></div>`;
 }
 
-function drawMatchLinesNow(root) {
-  root.querySelectorAll('.match-wrap[data-match-reveal="1"]').forEach(wrap => {
-    const svg = wrap.querySelector(".match-lines");
-    if (!svg) return;
-    const wr = wrap.getBoundingClientRect();
-    svg.setAttribute("width", wr.width);
-    svg.setAttribute("height", wr.height);
-    svg.setAttribute("viewBox", `0 0 ${wr.width} ${wr.height}`);
-    let lines = "";
+// 연결선 색: 사이트 버튼 색(--btn-accent)을 글자색(--text-main) 쪽으로 어둡게 섞어서 자동 계산
+function matchLineColor() {
+  const cs = getComputedStyle(document.documentElement);
+  const rgb = v => { const m = /^#?([0-9a-f]{6})$/i.exec((v || "").trim()); return m ? [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16)) : null; };
+  const a = rgb(cs.getPropertyValue("--btn-accent")) || [220, 203, 255];
+  const b = rgb(cs.getPropertyValue("--text-main")) || [36, 27, 61];
+  return `rgb(${a.map((v, i) => Math.round(v * 0.55 + b[i] * 0.45)).join(",")})`;
+}
+function matchWrongColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue("--accent-red-dark").trim() || "#C94F79";
+}
+function matchSizeSvg(wrap) {
+  const svg = wrap.querySelector(".match-lines"), wr = wrap.getBoundingClientRect();
+  svg.setAttribute("width", wr.width);
+  svg.setAttribute("height", wr.height);
+  svg.setAttribute("viewBox", `0 0 ${wr.width} ${wr.height}`);
+  wrap.style.setProperty("--match-line", matchLineColor());
+  return { svg, wr };
+}
+function matchPts(wr, l, r) {
+  const a = l.getBoundingClientRect(), b = r.getBoundingClientRect();
+  return { x1: a.right - wr.left, y1: a.top + a.height / 2 - wr.top, x2: b.left - wr.left, y2: b.top + b.height / 2 - wr.top };
+}
+function matchLineTag(p, color, extra) {
+  return `<line x1="${p.x1}" y1="${p.y1}" x2="${p.x2}" y2="${p.y2}" stroke="${color}" stroke-width="5" stroke-linecap="round" ${extra || ""}/>`;
+}
+
+// ---- 발표 화면의 연결형 인터랙션 ----
+let matchLinks = {};   // 문제번호 → { 왼쪽pair: 오른쪽pair } (학생이 이은 선)
+let matchRedraw = null;
+window.addEventListener("resize", () => { if (matchRedraw) matchRedraw(); });
+
+function setupMatch(card) {
+  const wrap = card.querySelector(".match-wrap");
+  if (!wrap) { matchRedraw = null; return; }
+  const links = (matchLinks[curIdx] = matchLinks[curIdx] || {});
+  const L = i => wrap.querySelector(`.match-left[data-pair="${i}"]`);
+  const R = i => wrap.querySelector(`.match-right[data-pair="${i}"]`);
+  const items = () => wrap.querySelectorAll(".match-item");
+  let sel = null, drag = null, temp = null;
+
+  function draw() {
+    const { svg, wr } = matchSizeSvg(wrap);
+    const color = matchLineColor();
+    let html = "";
+    if (revealed) {
+      wrap.querySelectorAll(".match-left").forEach(l => { html += matchLineTag(matchPts(wr, l, R(l.dataset.pair)), color); });
+      items().forEach(el => el.classList.add("correct", "linked"));
+    } else {
+      Object.entries(links).forEach(([li, rp]) => { html += matchLineTag(matchPts(wr, L(li), R(rp)), color); });
+      if (temp) html += matchLineTag(temp, color, 'stroke-opacity=".5" stroke-dasharray="1 10"');
+      const lSet = new Set(Object.keys(links).map(Number)), rSet = new Set(Object.values(links));
+      items().forEach(el => {
+        const p = Number(el.dataset.pair);
+        el.classList.toggle("linked", el.dataset.side === "L" ? lSet.has(p) : rSet.has(p));
+        el.classList.toggle("selected", el === sel);
+      });
+    }
+    svg.innerHTML = html;
+  }
+
+  // 정답 공개: 틀린 선은 붉게 변했다 사라지고, 빠진 정답선은 하나씩 그려짐
+  function playReveal() {
+    const { svg, wr } = matchSizeSvg(wrap);
+    const color = matchLineColor(), wrong = matchWrongColor();
+    let html = "", delay = 0.1;
+    const bad = Object.entries(links).filter(([li, rp]) => Number(li) !== rp);
+    bad.forEach(([li, rp]) => { html += matchLineTag(matchPts(wr, L(li), R(rp)), wrong, 'style="animation:match-fade .7s ease .5s forwards"'); });
+    if (bad.length) delay = 1.0;
     wrap.querySelectorAll(".match-left").forEach(l => {
-      const i = Number(l.dataset.pair);
-      const r = wrap.querySelector(`.match-right[data-pair="${i}"]`);
-      if (!r) return;
-      const lr = l.getBoundingClientRect(), rr = r.getBoundingClientRect();
-      const c = MATCH_COLORS[i % MATCH_COLORS.length];
-      lines += `<line x1="${lr.right - wr.left}" y1="${lr.top + lr.height / 2 - wr.top}" x2="${rr.left - wr.left}" y2="${rr.top + rr.height / 2 - wr.top}" stroke="${c}" stroke-width="4" stroke-linecap="round"/>`;
-      wrap.querySelectorAll(`[data-pair="${i}"] .match-badge`).forEach(b => { b.style.background = c; b.style.borderColor = c; b.style.color = "#fff"; });
+      const i = Number(l.dataset.pair), p = matchPts(wr, l, R(i));
+      if (links[i] === i) { html += matchLineTag(p, color); return; }
+      const len = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
+      html += matchLineTag(p, color, `style="stroke-dasharray:${len};stroke-dashoffset:${len};animation:match-draw .5s ease ${delay}s forwards"`);
+      delay += 0.5;
     });
-    svg.innerHTML = lines;
-  });
-}
-function drawMatchLines(root) {
-  drawMatchLinesNow(root);
-  if (document.fonts && document.fonts.status !== "loaded") document.fonts.ready.then(() => drawMatchLinesNow(root));
-}
+    svg.innerHTML = html;
+    setTimeout(() => items().forEach(el => el.classList.add("correct", "linked")), (delay + 0.1) * 1000);
+  }
 
-window.addEventListener("resize", () => drawMatchLines(document));
+  function connect(a, b) {
+    const l = a.dataset.side === "L" ? a : b, r = l === a ? b : a;
+    const rp = Number(r.dataset.pair);
+    Object.keys(links).forEach(k => { if (links[k] === rp) delete links[k]; });
+    links[Number(l.dataset.pair)] = rp;
+  }
+  function isLinked(el) {
+    const p = Number(el.dataset.pair);
+    return el.dataset.side === "L" ? p in links : Object.values(links).includes(p);
+  }
+  function unlink(el) {
+    const p = Number(el.dataset.pair);
+    if (el.dataset.side === "L") delete links[p];
+    else Object.keys(links).forEach(k => { if (links[k] === p) delete links[k]; });
+  }
+  // 클릭 방식: 한쪽 항목 클릭 → 반대쪽 항목 클릭하면 연결 / 이미 이어진 항목을 누르면 연결 해제
+  function clickItem(el) {
+    if (sel && sel !== el && sel.dataset.side !== el.dataset.side) { connect(sel, el); sel = null; }
+    else if (sel === el) sel = null;
+    else if (isLinked(el)) { unlink(el); sel = el; }
+    else sel = el;
+  }
+
+  // 드래그 방식: 항목에서 반대쪽 항목까지 끌어서 연결
+  wrap.addEventListener("pointerdown", e => {
+    if (revealed) return;
+    const el = e.target.closest(".match-item");
+    if (!el) return;
+    e.preventDefault();
+    wrap.setPointerCapture(e.pointerId);
+    drag = { el, x: e.clientX, y: e.clientY, moved: false };
+  });
+  wrap.addEventListener("pointermove", e => {
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
+    drag.moved = true;
+    const wr = wrap.getBoundingClientRect(), r = drag.el.getBoundingClientRect();
+    temp = { x1: (drag.el.dataset.side === "L" ? r.right : r.left) - wr.left, y1: r.top + r.height / 2 - wr.top, x2: e.clientX - wr.left, y2: e.clientY - wr.top };
+    draw();
+  });
+  wrap.addEventListener("pointerup", e => {
+    if (!drag) return;
+    const d = drag; drag = null; temp = null;
+    const t = document.elementFromPoint(e.clientX, e.clientY);
+    const target = t && t.closest(".match-item");
+    if (d.moved) { if (target && target.dataset.side !== d.el.dataset.side) { connect(d.el, target); sel = null; } }
+    else clickItem(d.el);
+    draw();
+  });
+  wrap.addEventListener("pointercancel", () => { drag = null; temp = null; draw(); });
+
+  matchRedraw = draw;
+  if (revealed) playReveal(); else draw();
+  if (document.fonts && document.fonts.status !== "loaded") document.fonts.ready.then(() => matchRedraw && matchRedraw());
+}
 
 // ---------- 유틸 ----------
 function escapeHtml(str) {

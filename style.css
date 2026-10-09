@@ -341,24 +341,32 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
 
 /* ---------- [추가] 연결형 표시 (발표 / PPTX 공통) ---------- */
 .match-wrap {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 110px 1fr;
-  row-gap: 10px;
-  margin-top: 14px;
+  position: relative; display: grid; grid-template-columns: 1fr 120px 1fr;
+  row-gap: 12px; margin-top: 14px; user-select: none; touch-action: none;
 }
 .match-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border-soft);
-  font-family: var(--font-choice); font-size: var(--font-size-choice); text-align: left;
-  background: var(--bg-card);
+  position: relative; z-index: 1; display: flex; align-items: center; justify-content: center;
+  padding: 14px 16px; border-radius: 14px; cursor: pointer; text-align: center;
+  font-family: var(--font-choice); font-size: var(--font-size-choice);
+  transition: border-color .2s, background .2s, box-shadow .2s;
 }
-.match-item.correct { border-color: var(--btn-accent); background: var(--btn-accent-tint-35); }
-.match-badge {
-  flex: 0 0 auto; min-width: 28px; height: 28px; padding: 0 6px; border-radius: 999px;
-  display: flex; align-items: center; justify-content: center;
-  border: 1.5px solid var(--border-strong); background: var(--bg-card-alt);
-  font-weight: 700; font-size: 0.9em;
+/* 왼쪽 = 버튼 색으로 채운 카드 / 오른쪽 = 흰 카드 + 버튼 색 테두리 */
+.match-left  { background: var(--btn-accent); border: 2px solid var(--btn-accent); }
+.match-right { background: var(--bg-card);    border: 2px solid var(--btn-accent); }
+.match-item:hover { box-shadow: 0 6px 14px rgba(36,27,61,0.10); }
+.match-item.selected { box-shadow: 0 0 0 3px var(--match-line, #897CA8); }
+.match-item.correct { font-weight: 700; }
+.match-right.correct { background: var(--btn-accent-tint-35); }
+/* 연결 지점(점) */
+.match-item::after {
+  content: ""; position: absolute; top: 50%; width: 16px; height: 16px; margin-top: -8px;
+  box-sizing: border-box; border-radius: 50%;
+  background: var(--bg-card); border: 3px solid var(--match-line, #897CA8);
 }
-.match-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.match-left::after  { right: -8px; }
+.match-right::after { left: -8px; }
+.match-item.linked::after { background: var(--match-line, #897CA8); }
+.match-lines { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; overflow: visible; }
+@keyframes match-draw { to { stroke-dashoffset: 0; } }
+@keyframes match-fade { to { opacity: 0; } }
 .pptx-row-middle .match-wrap { width: 100%; margin: 0; }
