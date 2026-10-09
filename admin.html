@@ -392,7 +392,7 @@ document.getElementById("btn-new-set").addEventListener("click", () => openEdito
 document.getElementById("btn-cancel-edit").addEventListener("click", closeEditor);
 document.getElementById("btn-add-question").addEventListener("click", () => {
   editingQuestions.forEach(q => q.collapsed = true); // 기존 문제는 자동으로 접기
-  editingQuestions.push({ type: "mcq", question: "", image: "", choices: ["", ""], correctIndex: 0, answer: "", altAnswers: "", hint: "", explanation: "", collapsed: false });
+  editingQuestions.push(newQuestion());
   renderEditor();
 });
 document.getElementById("btn-save-set").addEventListener("click", saveSet);
@@ -404,7 +404,7 @@ async function openEditor(id) {
     const res = await apiGet("set", { id });
     if (!res.ok) { alert("불러오기 실패"); return; }
     document.getElementById("set-title").value = res.set.title;
-    editingQuestions = res.set.questions.map(q => ({
+    editingQuestions = res.set.questions.map(q => normalizeQuestion({
       ...q,
       correctIndex: q.type === "mcq" ? (q.choices || []).indexOf(q.answer) : 0,
       collapsed: true
@@ -426,7 +426,24 @@ function closeEditor() {
   editingQuestions = [];
 }
 
-const TYPE_LABEL = { mcq: "객관식", short: "주관식", ox: "OX" };
+const TYPE_LABEL = { ox: "OX", mcq: "객관식", short: "주관식", match: "연결형" };
+const TYPE_ORDER = ["ox", "mcq", "short", "match"]; // 라디오 표시 순서
+const MAX_PAIRS = 5; // 연결형 최대 짝 수 (슬라이드 한 장에 들어가는 개수)
+
+function newQuestion() {
+  return normalizeQuestion({ type: "ox", question: "", image: "", answer: "O", altAnswers: "", hint: "", explanation: "", collapsed: false });
+}
+// 유형을 바꿔도 에디터가 깨지지 않도록 모든 유형의 필드를 보정
+function normalizeQuestion(q) {
+  const ch = Array.isArray(q.choices) ? q.choices.slice() : [];
+  while (ch.length < 2) ch.push("");
+  q.choices = ch;
+  const pr = Array.isArray(q.pairs) ? q.pairs.map(p => ({ left: p.left || "", right: p.right || "" })) : [];
+  while (pr.length < 2) pr.push({ left: "", right: "" });
+  q.pairs = pr;
+  if (!(q.correctIndex >= 0)) q.correctIndex = 0;
+  return q;
+}
 
 function renderEditor() {
   const wrap = document.getElementById("questions-wrap");
@@ -451,11 +468,9 @@ function renderEditor() {
     if (!q.collapsed) {
       inner += `<div class="q-editor-body">`;
       inner += `
-        <select data-qidx="${idx}" data-field="type" style="width:auto; display:inline-block; margin-bottom:10px;">
-          <option value="mcq" ${q.type === "mcq" ? "selected" : ""}>객관식</option>
-          <option value="short" ${q.type === "short" ? "selected" : ""}>주관식</option>
-          <option value="ox" ${q.type === "ox" ? "selected" : ""}>OX</option>
-        </select>
+        <div class="type-radio-group">
+          ${TYPE_ORDER.map(t => `<label class="type-radio"><input type="radio" name="type-${idx}" data-qidx="${idx}" data-field="type" value="${t}" ${q.type === t ? "checked" : ""}> ${TYPE_LABEL[t]}</label>`).join("")}
+        </div>
         <label class="field-label">문제</label>
         <textarea data-qidx="${idx}" data-field="question" placeholder="문제를 입력하세요">${escapeHtml(q.question)}</textarea>
 
@@ -484,6 +499,20 @@ function renderEditor() {
             <label style="margin-left:16px;"><input type="radio" name="ox-${idx}" data-qidx="${idx}" data-field="ox-answer" value="X" ${q.answer === "X" ? "checked" : ""}> X</label>
           </div>
         `;
+      } else if (q.type === "match") {
+        inner += `<label class="field-label">짝 맞추기 — 같은 줄의 왼쪽·오른쪽이 정답 짝이에요. 슬라이드에서는 왼쪽이 1, 2, 3…, 오른쪽이 ㄱ, ㄴ, ㄷ…으로 표시되고 오른쪽 순서는 자동으로 섞여요.</label>`;
+        q.pairs.forEach((p, pidx) => {
+          inner += `
+            <div class="pair-row">
+              <span class="pair-no">${pidx + 1}</span>
+              <input type="text" data-qidx="${idx}" data-field="pair-left" data-pidx="${pidx}" value="${escapeHtml(p.left)}" placeholder="왼쪽 항목">
+              <span class="pair-arrow">↔</span>
+              <input type="text" data-qidx="${idx}" data-field="pair-right" data-pidx="${pidx}" value="${escapeHtml(p.right)}" placeholder="짝이 되는 항목">
+              <button class="btn-ghost btn-sm" data-remove-pair="${idx}:${pidx}">삭제</button>
+            </div>
+          `;
+        });
+        if (q.pairs.length < MAX_PAIRS) inner += `<button class="btn-ghost btn-sm" data-add-pair="${idx}">+ 짝 추가</button>`;
       } else {
         inner += `
           <label class="field-label">정답</label>
@@ -515,6 +544,8 @@ document.getElementById("questions-wrap").addEventListener("input", (e) => {
   const q = editingQuestions[idx];
   if (field === "choice") {
     q.choices[e.target.dataset.cidx] = e.target.value;
+  } else if (field === "pair-left" || field === "pair-right") {
+    q.pairs[e.target.dataset.pidx][field === "pair-left" ? "left" : "right"] = e.target.value;
   } else if (field === "question" || field === "answer" || field === "altAnswers" || field === "hint" || field === "explanation") {
     q[field] = e.target.value;
   }
@@ -527,7 +558,14 @@ document.getElementById("questions-wrap").addEventListener("change", async (e) =
   if (idx === undefined || !field) return;
   const q = editingQuestions[idx];
 
-  if (field === "type") { q.type = e.target.value; renderEditor(); }
+  if (field === "type") {
+    const prev = q.type;
+    q.type = e.target.value;
+    normalizeQuestion(q);
+    if (q.type === "ox" && q.answer !== "O" && q.answer !== "X") q.answer = "O";
+    if (q.type === "short" && prev === "ox") q.answer = "";
+    renderEditor();
+  }
   if (field === "mcq-correct") { q.correctIndex = Number(e.target.dataset.cidx); }
   if (field === "ox-answer") { q.answer = e.target.value; }
   if (field === "image-upload") {
@@ -568,6 +606,19 @@ document.getElementById("questions-wrap").addEventListener("click", (e) => {
     renderEditor();
     return;
   }
+  if (e.target.dataset.addPair !== undefined) {
+    const q = editingQuestions[Number(e.target.dataset.addPair)];
+    if (q.pairs.length < MAX_PAIRS) q.pairs.push({ left: "", right: "" });
+    renderEditor();
+    return;
+  }
+  if (e.target.dataset.removePair !== undefined) {
+    const [qi, pi] = e.target.dataset.removePair.split(":").map(Number);
+    if (editingQuestions[qi].pairs.length <= 2) { alert("짝은 최소 2개가 필요해요."); return; }
+    editingQuestions[qi].pairs.splice(pi, 1);
+    renderEditor();
+    return;
+  }
   const toggleEl = e.target.closest("[data-toggle-collapse]");
   if (toggleEl) {
     const idx = Number(toggleEl.dataset.toggleCollapse);
@@ -586,6 +637,13 @@ async function saveSet() {
   if (!title) { alert("세트 제목을 입력해주세요."); return; }
   if (editingQuestions.length === 0) { alert("문제를 1개 이상 추가해주세요."); return; }
 
+  for (let i = 0; i < editingQuestions.length; i++) {
+    const q = editingQuestions[i];
+    if (q.type === "match" && q.pairs.filter(p => p.left.trim() && p.right.trim()).length < 2) {
+      alert(`문제 ${i + 1}: 연결형은 짝을 2개 이상 입력해주세요.`); return;
+    }
+  }
+
   const questions = editingQuestions.map(q => {
     const out = { type: q.type, question: q.question, image: q.image || "", explanation: q.explanation || "" };
     if (q.type === "mcq") {
@@ -593,6 +651,9 @@ async function saveSet() {
       out.answer = q.choices[q.correctIndex] || "";
     } else if (q.type === "ox") {
       out.answer = q.answer || "O";
+    } else if (q.type === "match") {
+      out.pairs = q.pairs.filter(p => p.left.trim() && p.right.trim()).map(p => ({ left: p.left.trim(), right: p.right.trim() }));
+      out.answer = "";
     } else {
       out.answer = q.answer || "";
       out.altAnswers = q.altAnswers || "";
@@ -629,6 +690,8 @@ function questionCaptureHtml(q, revealed) {
       <div class="ox-box ${revealed && q.answer === "O" ? "correct" : ""}">O</div>
       <div class="ox-box ${revealed && q.answer === "X" ? "correct" : ""}">X</div>
     </div></div>`);
+  } else if (q.type === "match") {
+    blocks.push(`<div class="pptx-row-middle">${matchHtml(q, revealed)}</div>`);
   } else if (q.type === "short" && q.hint && !revealed) {
     blocks.push(`<div class="pptx-row-middle"><div class="hint-box">${escapeHtml(q.hint)}</div></div>`);
   }
@@ -672,11 +735,13 @@ async function exportPptxForSet(id) {
       progressEl.innerText = `${i + 1} / ${full.questions.length}`;
 
       cardEl.innerHTML = questionCaptureHtml(q, false);
+      drawMatchLines(cardEl);
       await waitForImages(slideEl);
       await addSlideCapture(pptx, slideEl);
 
       if (includeAnswers) {
         cardEl.innerHTML = questionCaptureHtml(q, true);
+        drawMatchLines(cardEl);
         await waitForImages(slideEl);
         await addSlideCapture(pptx, slideEl);
       }
@@ -700,6 +765,63 @@ async function addSlideCapture(pptx, el) {
   const dataUrl = canvas.toDataURL("image/png");
   const slide = pptx.addSlide();
   slide.addImage({ data: dataUrl, x: 0, y: 0, w: 10, h: 5.63 });
+}
+
+// ---------- 연결형 (선 잇기) ----------
+const MATCH_LABELS = ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ", "ㅂ"];
+const MATCH_COLORS = ["#7C5CFF", "#FF8A5C", "#17B892", "#E0558A", "#F2A900", "#3B9DFF"];
+
+// 오른쪽 항목 순서: 문제 내용으로 고정된 셔플 (정답 화면/PPTX에서도 같은 순서 유지)
+function matchOrder(q) {
+  const pairs = q.pairs || [], n = pairs.length;
+  let seed = 0;
+  const key = (q.question || "") + pairs.map(p => p.left + "|" + p.right).join("/");
+  for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const order = pairs.map((_, i) => i);
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  if (n > 1 && order.every((v, i) => v === i)) order.push(order.shift()); // 정답과 같은 줄에 놓이는 것 방지
+  return order;
+}
+
+function matchHtml(q, revealed) {
+  const pairs = q.pairs || [];
+  const order = matchOrder(q);
+  const cls = revealed ? "correct" : "";
+  let rows = "";
+  pairs.forEach((p, i) => {
+    const ri = order[i];
+    rows += `<div class="match-item match-left ${cls}" data-pair="${i}"><span class="match-badge">${i + 1}</span><span class="match-text">${escapeHtml(p.left)}</span></div>
+      <div></div>
+      <div class="match-item match-right ${cls}" data-pair="${ri}"><span class="match-badge">${MATCH_LABELS[i] || ""}</span><span class="match-text">${escapeHtml(pairs[ri].right)}</span></div>`;
+  });
+  return `<div class="match-wrap" data-match-reveal="${revealed ? 1 : 0}">${rows}<svg class="match-lines"></svg></div>`;
+}
+
+function drawMatchLinesNow(root) {
+  root.querySelectorAll('.match-wrap[data-match-reveal="1"]').forEach(wrap => {
+    const svg = wrap.querySelector(".match-lines");
+    if (!svg) return;
+    const wr = wrap.getBoundingClientRect();
+    svg.setAttribute("width", wr.width);
+    svg.setAttribute("height", wr.height);
+    svg.setAttribute("viewBox", `0 0 ${wr.width} ${wr.height}`);
+    let lines = "";
+    wrap.querySelectorAll(".match-left").forEach(l => {
+      const i = Number(l.dataset.pair);
+      const r = wrap.querySelector(`.match-right[data-pair="${i}"]`);
+      if (!r) return;
+      const lr = l.getBoundingClientRect(), rr = r.getBoundingClientRect();
+      const c = MATCH_COLORS[i % MATCH_COLORS.length];
+      lines += `<line x1="${lr.right - wr.left}" y1="${lr.top + lr.height / 2 - wr.top}" x2="${rr.left - wr.left}" y2="${rr.top + rr.height / 2 - wr.top}" stroke="${c}" stroke-width="4" stroke-linecap="round"/>`;
+      wrap.querySelectorAll(`[data-pair="${i}"] .match-badge`).forEach(b => { b.style.background = c; b.style.borderColor = c; b.style.color = "#fff"; });
+    });
+    svg.innerHTML = lines;
+  });
+}
+function drawMatchLines(root) {
+  drawMatchLinesNow(root);
+  if (document.fonts && document.fonts.status !== "loaded") document.fonts.ready.then(() => drawMatchLinesNow(root));
 }
 
 // ---------- 유틸 ----------

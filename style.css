@@ -313,3 +313,52 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   flex-direction: column; gap: 10px; z-index: 100; font-weight: 700;
 }
+
+/* =========================================================
+   [추가] 단어(띄어쓰기) 단위 줄바꿈 — 한글이 글자 단위로 잘리지 않게
+========================================================= */
+.question-card .question-text, .choice-display, .hint-box, .short-answer-display,
+.answer-box .explanation, .match-text, .set-card .set-title, h1.page-title {
+  word-break: keep-all;
+  overflow-wrap: break-word; /* 띄어쓰기 없는 아주 긴 단어만 예외적으로 강제 줄바꿈 */
+}
+
+/* ---------- [추가] 문제 유형 라디오 (에디터) ---------- */
+.type-radio-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.type-radio {
+  display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+  border: 1px solid var(--border-soft); border-radius: 999px;
+  cursor: pointer; font-size: 14px; font-weight: 600; background: var(--bg-card);
+}
+.type-radio:hover { border-color: var(--border-strong); }
+.type-radio:has(input:checked) { border-color: var(--btn-accent); background: var(--btn-accent-tint-25); }
+
+/* ---------- [추가] 연결형 에디터 ---------- */
+.pair-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.pair-row input[type=text] { flex: 1; }
+.pair-no { width: 24px; text-align: center; font-weight: 700; color: var(--text-muted); flex: 0 0 auto; }
+.pair-arrow { color: var(--text-faint); flex: 0 0 auto; }
+
+/* ---------- [추가] 연결형 표시 (발표 / PPTX 공통) ---------- */
+.match-wrap {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 110px 1fr;
+  row-gap: 10px;
+  margin-top: 14px;
+}
+.match-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border-soft);
+  font-family: var(--font-choice); font-size: var(--font-size-choice); text-align: left;
+  background: var(--bg-card);
+}
+.match-item.correct { border-color: var(--btn-accent); background: var(--btn-accent-tint-35); }
+.match-badge {
+  flex: 0 0 auto; min-width: 28px; height: 28px; padding: 0 6px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--border-strong); background: var(--bg-card-alt);
+  font-weight: 700; font-size: 0.9em;
+}
+.match-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.pptx-row-middle .match-wrap { width: 100%; margin: 0; }
