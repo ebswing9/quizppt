@@ -422,15 +422,17 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 .preset-swatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border-strong); flex: 0 0 auto; }
 
 /* ---------- [추가] 정답 공개 / 문제 전환 효과 ---------- */
+@keyframes pop-soft { 0% { transform: scale(.97); opacity: 0; } 60% { transform: scale(1.012); opacity: 1; } 100% { transform: scale(1); } }
 @keyframes pop-in { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
 @keyframes ch-pop { 0% { opacity: 0; transform: translateY(14px) scale(.6); } 100% { opacity: 1; transform: none; } }
 @keyframes dim-out { to { opacity: .4; } }
 @keyframes slide-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes card-enter { from { opacity: 0; transform: translateY(14px) scale(.98); } }
 .question-card.enter { animation: card-enter .4s ease; }
-.reveal-anim .choice-display.correct, .reveal-anim .ox-box.correct { animation: pop-in .55s ease backwards; }
+.reveal-anim .choice-display.correct { animation: pop-soft .5s ease backwards; }
+.reveal-anim .ox-box.correct { animation: pop-in .55s ease backwards; }
 .reveal-anim .choice-list .choice-display:not(.correct), .reveal-anim .ox-row .ox-box:not(.correct) { animation: dim-out .5s ease forwards; }
-.reveal-anim .short-answer-display { animation: pop-in .5s ease backwards; }
+.reveal-anim .short-answer-display { animation: pop-soft .5s ease backwards; }
 .reveal-anim .short-answer-display .ch { display: inline-block; animation: ch-pop .5s cubic-bezier(.3,1.6,.5,1) backwards; animation-delay: calc(var(--i) * 70ms + 200ms); }
 .reveal-anim .answer-box { animation: slide-up .5s ease .4s backwards; }
 .short-answer-display .w { white-space: nowrap; }
@@ -522,17 +524,14 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 .hint-icon:hover { background: var(--btn-accent-tint-35); color: var(--text-muted); filter: none; }
 .hint-icon.used { color: var(--text-muted); }
 
-/* 정답 보기 / 다음 문제: 굵은 테두리 + 아래로 두툼한 그림자 (누르면 푹 눌림) */
+/* 정답 보기 / 다음 문제: 테두리 없이 부드러운 그림자만 (호버하면 살짝 뜨고, 누르면 눌림) */
 .bottom-actions button.btn-block {
-  --btn-edge: #897CA8;
-  --btn-edge: color-mix(in srgb, var(--btn-accent) 55%, var(--text-main));
-  padding: 16px 18px; font-size: 17px; border-radius: 16px;
-  border: 3px solid var(--btn-edge);
-  box-shadow: 0 5px 0 var(--btn-edge), 0 12px 20px rgba(36,27,61,0.12);
-  transition: transform .1s, box-shadow .1s;
+  padding: 16px 18px; font-size: 17px; border-radius: 16px; border: none;
+  box-shadow: 0 8px 18px rgba(36,27,61,0.16), 0 2px 4px rgba(36,27,61,0.08);
+  transition: transform .12s, box-shadow .12s;
 }
-.bottom-actions button.btn-block:hover { filter: none; transform: translateY(-1px); box-shadow: 0 6px 0 var(--btn-edge), 0 14px 22px rgba(36,27,61,0.14); }
-.bottom-actions button.btn-block:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--btn-edge), 0 4px 8px rgba(36,27,61,0.10); }
+.bottom-actions button.btn-block:hover { filter: none; transform: translateY(-2px); box-shadow: 0 12px 24px rgba(36,27,61,0.20), 0 2px 4px rgba(36,27,61,0.08); }
+.bottom-actions button.btn-block:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(36,27,61,0.14); }
 
 .progress-text { cursor: var(--cursor-pointer); padding: 4px 10px; border-radius: 999px; transition: background .2s; }
 .progress-text:hover { background: var(--btn-accent-tint-35); }
