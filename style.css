@@ -403,11 +403,11 @@ button, input, textarea, select { font-family: inherit; }
 .jump-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* =========================================================
-   [추가] 귀여운 마우스 커서 (기본 = 하트 달린 화살표 / 클릭 가능 = 발바닥)
+   [추가] 귀여운 마우스 커서 (기본 = 연보라 화살표 / 클릭 가능 = 연노랑 화살표, 작고 단정하게)
 ========================================================= */
 :root {
-  --cursor-default: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M6 4 L6 25 L11.5 20 L15.5 28.5 L19.5 26.7 L15.7 18.4 L23 18 Z' fill='%23DCCBFF' stroke='%23241B3D' stroke-width='2.4' stroke-linejoin='round'/%3E%3Cpath d='M26 12 C23 9.5 22.5 7 24.3 6.2 C25.2 5.8 26 6.4 26 7.2 C26 6.4 26.8 5.8 27.7 6.2 C29.5 7 29 9.5 26 12 Z' fill='%23FF9EBB' stroke='%23241B3D' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E") 6 4, auto;
-  --cursor-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg fill='%23FFC2D6' stroke='%23241B3D' stroke-width='2'%3E%3Cellipse cx='16' cy='21' rx='8' ry='6.5'/%3E%3Ccircle cx='6.5' cy='14' r='3.2'/%3E%3Ccircle cx='12' cy='8.5' r='3.2'/%3E%3Ccircle cx='20' cy='8.5' r='3.2'/%3E%3Ccircle cx='25.5' cy='14' r='3.2'/%3E%3C/g%3E%3C/svg%3E") 16 14, pointer;
+  --cursor-default: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Cpath d='M4 2.7 L4 17 L7.8 13.6 L10.5 19.4 L13.3 18.2 L10.7 12.5 L15.6 12.2 Z' fill='%23DCCBFF' stroke='%236B6089' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, auto;
+  --cursor-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Cpath d='M4 2.7 L4 17 L7.8 13.6 L10.5 19.4 L13.3 18.2 L10.7 12.5 L15.6 12.2 Z' fill='%23FFE3A3' stroke='%238A6A1E' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, pointer;
 }
 html, body { cursor: var(--cursor-default); }
 a, select, input[type=file], input[type=color], label.type-radio { cursor: var(--cursor-pointer); }
