@@ -403,11 +403,11 @@ button, input, textarea, select { font-family: inherit; }
 .jump-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* =========================================================
-   [추가] 귀여운 마우스 커서 (기본 = 연보라 화살표 / 클릭 가능 = 연노랑 화살표, 작고 단정하게)
+   [추가] 귀여운 마우스 커서 (작고 단정한 연보라 화살표)
 ========================================================= */
 :root {
   --cursor-default: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Cpath d='M4 2.7 L4 17 L7.8 13.6 L10.5 19.4 L13.3 18.2 L10.7 12.5 L15.6 12.2 Z' fill='%23DCCBFF' stroke='%236B6089' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, auto;
-  --cursor-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Cpath d='M4 2.7 L4 17 L7.8 13.6 L10.5 19.4 L13.3 18.2 L10.7 12.5 L15.6 12.2 Z' fill='%23FFE3A3' stroke='%238A6A1E' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, pointer;
+  --cursor-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Cpath d='M4 2.7 L4 17 L7.8 13.6 L10.5 19.4 L13.3 18.2 L10.7 12.5 L15.6 12.2 Z' fill='%23DCCBFF' stroke='%236B6089' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, pointer;
 }
 html, body { cursor: var(--cursor-default); }
 a, select, input[type=file], input[type=color], label.type-radio { cursor: var(--cursor-pointer); }
@@ -448,7 +448,7 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 /* ---------- [추가] 빈칸 채우기 ---------- */
 .blank {
   display: inline-block; position: relative; text-align: center;
-  min-width: calc(var(--w, 3) * 0.95em + .8em); padding: 0 .3em; margin: 0 .1em; border-radius: .3em;
+  min-width: calc(var(--w, 3) * 0.95em + .8em); padding: .12em .3em 0; margin: 0 .1em; border-radius: .3em;
   background: var(--btn-accent-tint-35); border-bottom: .12em dashed var(--btn-accent); cursor: var(--cursor-pointer);
   transition: background .35s ease var(--d, 0s), transform .15s;
 }
@@ -488,8 +488,8 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 .sort-bin.drop-target { background: var(--btn-accent-tint-35); border-style: solid; }
 .sort-wrap.has-sel .sort-bin { animation: dot-ping 1.4s ease-out infinite; }
 .sort-bin-name {
-  display: inline-block; background: var(--btn-accent); border-radius: 999px; padding: 4px 14px; margin-bottom: 8px;
-  font-weight: 700; font-family: var(--font-choice); font-size: var(--font-size-choice);
+  display: inline-block; background: var(--btn-accent); border-radius: 999px; padding: 6px 20px; margin-bottom: 10px;
+  font-weight: 700; font-family: var(--font-choice); font-size: calc(var(--font-size-choice) * 1.45);
 }
 .sort-bin-body { display: flex; flex-direction: column; gap: 6px; align-items: center; }
 .sort-card {
@@ -499,3 +499,15 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 .sort-card:hover { box-shadow: 0 6px 14px rgba(36,27,61,0.12); }
 .sort-card.selected { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--match-line, #897CA8); }
 .pptx-row-middle .order-wrap, .pptx-row-middle .sort-wrap { width: 100%; margin: 0; }
+
+/* =========================================================
+   [추가] 마우스 효과: 커서를 따라다니는 은은한 빛 + 클릭할 때 떨어지는 별가루
+========================================================= */
+#fx-glow {
+  position: fixed; left: 0; top: 0; width: 280px; height: 280px; margin: -140px 0 0 -140px;
+  border-radius: 50%; pointer-events: none; z-index: 9990; opacity: 0; transition: opacity .35s;
+  background: radial-gradient(circle, rgba(255,255,255,0.75) 0%, rgba(255,227,163,0.30) 38%, rgba(255,227,163,0) 70%);
+  will-change: transform;
+}
+#fx-glow.on { opacity: 1; }
+.fx-star { position: fixed; pointer-events: none; z-index: 9995; will-change: transform, opacity; }

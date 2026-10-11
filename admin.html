@@ -1030,5 +1030,52 @@ function fmtDate(iso) {
   try { return new Date(iso).toLocaleDateString("ko-KR"); } catch (e) { return ""; }
 }
 </script>
+<script>
+// ---------- 마우스 효과: 커서를 따라다니는 빛 + 클릭 별가루 ----------
+(function initPointerFx() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const glow = document.createElement("div");
+  glow.id = "fx-glow";
+  document.body.appendChild(glow);
+  let tx = 0, ty = 0, x = 0, y = 0, raf = null;
+  const loop = () => {
+    x += (tx - x) * 0.18; y += (ty - y) * 0.18;
+    glow.style.transform = `translate(${x}px,${y}px)`;
+    raf = (Math.abs(tx - x) > 0.3 || Math.abs(ty - y) > 0.3) ? requestAnimationFrame(loop) : null;
+  };
+  window.addEventListener("pointermove", e => {
+    if (e.pointerType === "touch") return;
+    tx = e.clientX; ty = e.clientY;
+    if (!glow.classList.contains("on")) { x = tx; y = ty; glow.classList.add("on"); }
+    if (!raf) raf = requestAnimationFrame(loop);
+  });
+  document.documentElement.addEventListener("mouseleave", () => glow.classList.remove("on"));
+
+  const COLORS = ["#FFC93C", "#B79CF5", "#6FD3B5", "#FF9DBB"];
+  const SHAPES = [
+    "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
+    "polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%)"
+  ];
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  window.addEventListener("pointerdown", e => {
+    for (let i = 0; i < 9; i++) {
+      const el = document.createElement("div");
+      const size = 8 + Math.random() * 8;
+      el.className = "fx-star";
+      el.style.cssText = `width:${size}px;height:${size}px;background:${pick(COLORS)};clip-path:${pick(SHAPES)};left:${e.clientX - size / 2}px;top:${e.clientY - size / 2}px`;
+      document.body.appendChild(el);
+      const a = Math.random() * Math.PI * 2, r = 18 + Math.random() * 28;
+      const dx = Math.cos(a) * r, dy = Math.sin(a) * r * 0.6 - 12;   // 살짝 튀어 올랐다가
+      const fall = 40 + Math.random() * 50, rot = (Math.random() - 0.5) * 240;
+      const anim = el.animate([
+        { transform: "translate(0,0) scale(.4) rotate(0deg)", opacity: 1 },
+        { transform: `translate(${dx}px,${dy}px) scale(1) rotate(${rot / 2}deg)`, opacity: 1, offset: 0.35 },
+        { transform: `translate(${dx * 1.2}px,${dy + fall}px) scale(.3) rotate(${rot}deg)`, opacity: 0 }
+      ], { duration: 750 + Math.random() * 450, easing: "cubic-bezier(.2,.7,.4,1)" });
+      anim.onfinish = () => el.remove();
+    }
+  }, true);
+})();
+</script>
 </body>
 </html>
