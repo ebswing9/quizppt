@@ -577,7 +577,7 @@ function renderEditor() {
         });
         if (q.groups.length < MAX_GROUPS) inner += `<button class="btn-ghost btn-sm" style="margin-top:10px;" data-add-group="${idx}">+ 분류 추가</button>`;
       } else if (q.type === "blank") {
-        inner += `<p class="field-note">위 '문제' 칸에 문장을 쓰고, 가릴 부분을 [대괄호]로 감싸세요. 예) 광합성은 [엽록체]에서 일어난다. 슬라이드에서는 빈칸을 눌러 하나씩 열 수 있어요.</p>`;
+        inner += `<p class="field-note">위 '문제' 칸에 문장을 쓰고, 가릴 부분을 [대괄호]로 감싸세요. 예) 광합성은 [엽록체]에서 일어난다. 슬라이드에서는 빈칸을 눌러 열고, 다시 눌러 닫을 수 있어요.</p>`;
       } else if (q.type === "match") {
         inner += `<label class="field-label">짝 맞추기 — 같은 줄의 왼쪽·오른쪽이 정답 짝이에요. 슬라이드에서는 왼쪽·오른쪽이 서로 다른 색의 두 열로 나뉘어 표시되고, 오른쪽 순서는 자동으로 섞여요.</label>`;
         q.pairs.forEach((p, pidx) => {
@@ -857,12 +857,14 @@ async function exportPptxForSet(id) {
 
       cardEl.innerHTML = questionCaptureHtml(q, false);
       drawMatchLines(cardEl);
+      fixBlankNudge(cardEl);
       await waitForImages(slideEl);
       await addSlideCapture(pptx, slideEl);
 
       if (includeAnswers) {
         cardEl.innerHTML = questionCaptureHtml(q, true);
         drawMatchLines(cardEl);
+        fixBlankNudge(cardEl);
         await waitForImages(slideEl);
         await addSlideCapture(pptx, slideEl);
       }
@@ -929,6 +931,22 @@ function sortHtml(q, revealed) {
   return `<div class="sort-wrap"><div class="flip-area">${sortInner(q, assign, sortPoolOrder(q), revealed)}</div></div>`;
 }
 
+// 빈칸 안 글자를 폰트와 상관없이 칸의 세로 가운데에 맞춤 (폰트마다 글자가 위/아래로 치우친 정도가 달라서 직접 측정)
+function fixBlankNudge(root) {
+  root.querySelectorAll(".question-text").forEach(qt => {
+    if (!qt.querySelector(".blank")) return;
+    const cs = getComputedStyle(qt);
+    const size = parseFloat(cs.fontSize) || 44;
+    const ctx = (fixBlankNudge.ctx = fixBlankNudge.ctx || document.createElement("canvas").getContext("2d"));
+    ctx.font = `${cs.fontWeight} ${size}px ${cs.fontFamily}`;
+    const m = ctx.measureText("가나다라마바사");
+    if (m.fontBoundingBoxAscent === undefined) return;
+    const boxCenter = (m.fontBoundingBoxDescent - m.fontBoundingBoxAscent) / 2;   // 줄 박스의 가운데 (기준선 기준)
+    const glyphCenter = (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2; // 실제 글자 모양의 가운데
+    qt.style.setProperty("--blank-nudge", ((boxCenter - glyphCenter) / size).toFixed(3) + "em");
+  });
+}
+
 // 빈칸: 문제 글의 [정답] 부분을 빈칸으로 바꿈
 function blankQuestionHtml(text, openAll, openSet, anim) {
   const src = text || "", re = /\[([^\]]+)\]/g;
@@ -974,14 +992,14 @@ function matchHtml(q, revealed) {
 
 // 연결선 색: 사이트 버튼 색(--btn-accent)을 글자색(--text-main) 쪽으로 어둡게 섞어서 자동 계산
 function matchLineColor() {
-  const cs = getComputedStyle(document.documentElement);
+  const cs = getComputedStyle(document.body);
   const rgb = v => { const m = /^#?([0-9a-f]{6})$/i.exec((v || "").trim()); return m ? [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16)) : null; };
   const a = rgb(cs.getPropertyValue("--btn-accent")) || [220, 203, 255];
   const b = rgb(cs.getPropertyValue("--text-main")) || [36, 27, 61];
   return `rgb(${a.map((v, i) => Math.round(v * 0.55 + b[i] * 0.45)).join(",")})`;
 }
 function matchWrongColor() {
-  return getComputedStyle(document.documentElement).getPropertyValue("--accent-red-dark").trim() || "#C94F79";
+  return getComputedStyle(document.body).getPropertyValue("--accent-red-dark").trim() || "#C94F79";
 }
 function matchSizeSvg(wrap) {
   const svg = wrap.querySelector(".match-lines"), wr = wrap.getBoundingClientRect();
@@ -1051,18 +1069,26 @@ function fmtDate(iso) {
   });
   document.documentElement.addEventListener("mouseleave", () => glow.classList.remove("on"));
 
-  const COLORS = ["#FFC93C", "#B79CF5", "#6FD3B5", "#FF9DBB"];
+  // 별가루 색: 관리자 페이지에서 정한 테마색(--btn-accent)을 기준으로 진하기만 다르게
+  const hexRgb = v => { const m = /^#?([0-9a-f]{6})$/i.exec((v || "").trim()); return m ? [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16)) : null; };
+  const themeColors = () => {
+    const cs = getComputedStyle(document.body);
+    const a = hexRgb(cs.getPropertyValue("--btn-accent")) || [220, 203, 255];
+    const b = hexRgb(cs.getPropertyValue("--text-main")) || [36, 27, 61];
+    return [0, 0.12, 0.28, 0.42].map(t => `rgb(${a.map((v, i) => Math.round(v * (1 - t) + b[i] * t)).join(",")})`);
+  };
   const SHAPES = [
     "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)",
     "polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%)"
   ];
   const pick = a => a[Math.floor(Math.random() * a.length)];
   window.addEventListener("pointerdown", e => {
+    const colors = themeColors();
     for (let i = 0; i < 9; i++) {
       const el = document.createElement("div");
       const size = 8 + Math.random() * 8;
       el.className = "fx-star";
-      el.style.cssText = `width:${size}px;height:${size}px;background:${pick(COLORS)};clip-path:${pick(SHAPES)};left:${e.clientX - size / 2}px;top:${e.clientY - size / 2}px`;
+      el.style.cssText = `width:${size}px;height:${size}px;background:${pick(colors)};clip-path:${pick(SHAPES)};left:${e.clientX - size / 2}px;top:${e.clientY - size / 2}px`;
       document.body.appendChild(el);
       const a = Math.random() * Math.PI * 2, r = 18 + Math.random() * 28;
       const dx = Math.cos(a) * r, dy = Math.sin(a) * r * 0.6 - 12;   // 살짝 튀어 올랐다가
