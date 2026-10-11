@@ -309,13 +309,7 @@ function setupBlank(card) {
   if (!bl.length) return;
   const set = (blankOpen[curIdx] = blankOpen[curIdx] || new Set());
   if (revealed) { bl.forEach(b => set.add(Number(b.dataset.b))); return; }
-  // 문제 화면에서는 빈칸을 눌러 열고, 다시 누르면 닫혀요 (정답 보기를 누르면 전부 열림)
-  bl.forEach(b => b.addEventListener("click", () => {
-    const k = Number(b.dataset.b);
-    b.style.setProperty("--d", "0s");
-    if (b.classList.contains("open")) { set.delete(k); b.classList.remove("open", "anim"); }
-    else { set.add(k); b.classList.add("anim", "open"); }
-  }));
+  // 문제 화면에서는 빈칸이 닫힌 채로 있고, 정답 보기를 누르면 차례로 열려요
 }
 
 function renderQuestion(noEnter) {

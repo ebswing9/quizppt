@@ -577,7 +577,7 @@ function renderEditor() {
         });
         if (q.groups.length < MAX_GROUPS) inner += `<button class="btn-ghost btn-sm" style="margin-top:10px;" data-add-group="${idx}">+ 분류 추가</button>`;
       } else if (q.type === "blank") {
-        inner += `<p class="field-note">위 '문제' 칸에 문장을 쓰고, 가릴 부분을 [대괄호]로 감싸세요. 예) 광합성은 [엽록체]에서 일어난다. 슬라이드에서는 빈칸을 눌러 열고, 다시 눌러 닫을 수 있어요.</p>`;
+        inner += `<p class="field-note">위 '문제' 칸에 문장을 쓰고, 가릴 부분을 [대괄호]로 감싸세요. 예) 광합성은 [엽록체]에서 일어난다. 슬라이드에서는 정답 보기를 누르면 빈칸이 차례로 열려요.</p>`;
       } else if (q.type === "match") {
         inner += `<label class="field-label">짝 맞추기 — 같은 줄의 왼쪽·오른쪽이 정답 짝이에요. 슬라이드에서는 왼쪽·오른쪽이 서로 다른 색의 두 열로 나뉘어 표시되고, 오른쪽 순서는 자동으로 섞여요.</label>`;
         q.pairs.forEach((p, pidx) => {

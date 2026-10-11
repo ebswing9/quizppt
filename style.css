@@ -449,13 +449,10 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 .blank {
   display: inline-block; position: relative; text-align: center;
   min-width: calc(var(--w, 3) * 0.95em + .8em); padding: .12em .3em 0; margin: 0 .1em; border-radius: .3em;
-  background: var(--btn-accent-tint-35); border-bottom: .12em dashed var(--btn-accent); cursor: var(--cursor-pointer);
-  transition: background .35s ease var(--d, 0s), transform .15s;
+  background: var(--btn-accent-tint-35); border-bottom: .12em dashed var(--btn-accent); transition: background .35s ease var(--d, 0s);
 }
-.blank:hover { transform: translateY(-2px); }
 .blank .blank-word { opacity: 0; position: relative; top: var(--blank-nudge, 0); }
-.reveal-anim .blank:hover { transform: none; }
-.blank.open { background: var(--btn-accent); border-bottom-style: solid; cursor: var(--cursor-default); }
+.blank.open { background: var(--btn-accent); border-bottom-style: solid; }
 .blank.open .blank-word { opacity: 1; }
 .blank.open.anim .blank-word { animation: ch-pop .5s cubic-bezier(.3,1.6,.5,1) backwards; animation-delay: var(--d, 0s); }
 
@@ -505,9 +502,9 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
    [추가] 마우스 효과: 커서를 따라다니는 은은한 빛 + 클릭할 때 떨어지는 별가루
 ========================================================= */
 #fx-glow {
-  position: fixed; left: 0; top: 0; width: 280px; height: 280px; margin: -140px 0 0 -140px;
+  position: fixed; left: 0; top: 0; width: 560px; height: 560px; margin: -280px 0 0 -280px;
   border-radius: 50%; pointer-events: none; z-index: 9990; opacity: 0; transition: opacity .35s;
-  background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0.10) 40%, rgba(255,255,255,0) 70%);
   will-change: transform;
 }
 #fx-glow.on { opacity: 1; }
