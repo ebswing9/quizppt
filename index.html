@@ -37,6 +37,7 @@
     <div class="bottom-actions">
       <button class="btn-gold btn-block" id="btn-reveal">정답 보기</button>
       <button class="btn-primary btn-block hidden" id="btn-next">다음 문제 →</button>
+      <button class="btn-ghost hidden" id="btn-retry">다시 풀기</button>
     </div>
   </div>
 </div>
@@ -61,12 +62,13 @@ let revealed = false;
   document.getElementById("btn-exit").addEventListener("click", exitToList);
   document.getElementById("btn-fullscreen").addEventListener("click", toggleFullscreen);
   document.getElementById("btn-jump").addEventListener("click", toggleJump);
+  document.getElementById("btn-retry").addEventListener("click", () => { Sfx.play("next"); resetQuestion(curIdx); revealed = false; renderQuestion(); });
   document.getElementById("progress-text").addEventListener("click", toggleJump);
   document.getElementById("btn-hint").addEventListener("click", () => { Sfx.play("hint"); hintStage[curIdx] = (hintStage[curIdx] || 0) + 1; renderQuestion(true); });
   document.getElementById("jump-panel").addEventListener("click", (e) => {
     const b = e.target.closest("[data-jump]");
     if (!b) return;
-    Sfx.play("next"); curIdx = Number(b.dataset.jump); revealed = false; closeJump(); renderQuestion();
+    Sfx.play("next"); curIdx = Number(b.dataset.jump); revealed = false; resetQuestion(curIdx); closeJump(); renderQuestion();
   });
   document.addEventListener("click", (e) => { if (!e.target.closest("#jump-panel, #btn-jump, #progress-text")) closeJump(); });
 
@@ -75,7 +77,7 @@ let revealed = false;
     if (!document.getElementById("jump-panel").classList.contains("hidden")) { if (e.code === "Escape") closeJump(); return; }
     if (/^Digit[1-9]$/.test(e.code)) {   // 숫자 키 1~9: 해당 번호 문제로 바로 이동
       const n = Number(e.code.slice(5)) - 1;
-      if (n < currentSet.questions.length) { Sfx.play("next"); curIdx = n; revealed = false; renderQuestion(); }
+      if (n < currentSet.questions.length) { Sfx.play("next"); curIdx = n; revealed = false; resetQuestion(curIdx); renderQuestion(); }
       return;
     }
     if (e.code === "Space") { e.preventDefault(); revealed ? nextQuestion() : reveal(); }
@@ -156,11 +158,11 @@ function reveal() { const t = currentSet.questions[curIdx].type; if (t !== "matc
 
 function nextQuestion() {
   if (curIdx < currentSet.questions.length - 1) {
-    Sfx.play("next"); curIdx++; revealed = false; renderQuestion();
+    Sfx.play("next"); curIdx++; revealed = false; resetQuestion(curIdx); renderQuestion();
   }  // 마지막 문제에서는 종료하지 않고 그대로 남아 있음
 }
 function prevQuestion() {
-  if (curIdx > 0) { Sfx.play("next"); curIdx--; revealed = false; renderQuestion(); }
+  if (curIdx > 0) { Sfx.play("next"); curIdx--; revealed = false; resetQuestion(curIdx); renderQuestion(); }
 }
 
 // ---------- 효과음 (파일 없이 브라우저에서 직접 만들어 재생) ----------
@@ -212,6 +214,7 @@ const Sfx = (() => {
 // ---------- 상태 / 애니메이션 도우미 ----------
 let orderState = {}, sortState = {}, blankOpen = {}, hintStage = {};
 function resetStates() { matchLinks = {}; orderState = {}; sortState = {}; blankOpen = {}; hintStage = {}; }
+function resetQuestion(i) { delete matchLinks[i]; delete orderState[i]; delete sortState[i]; delete blankOpen[i]; delete hintStage[i]; }
 const NEEDS_REVEAL = ["short", "match", "order", "sort", "blank"];
 
 // FLIP: 카드가 예전 자리에서 새 자리로 부드럽게 이동
@@ -373,6 +376,7 @@ function renderQuestion(noEnter) {
   hintBtn.title = stage === 0 ? "힌트 보기" : "힌트 더 보기";
   hintBtn.classList.toggle("used", stage > 0);
   document.getElementById("btn-next").classList.toggle("hidden", !revealed || curIdx >= currentSet.questions.length - 1);
+  document.getElementById("btn-retry").classList.toggle("hidden", !revealed);
 
   let html = "";
   if (q.image) html += `<img class="q-image" src="${q.image}" crossorigin="anonymous">`;
@@ -620,12 +624,12 @@ function setupMatch(card) {
     svg.innerHTML = html;
   }
 
-  // 정답 공개: ① 맞게 이은 선은 굵어지며 ✓ 배지 → ② 틀린 선은 붉어지며 ✕ 하고 사라짐 → ③ 빠진 정답선은 하나씩 그려짐 → ④ 결과 안내
+  // 정답 공개: ① 맞게 이은 선은 굵어지며 반짝 → ② 틀린 선은 붉어지며 ✕ 하고 사라짐 → ③ 빠진 정답선은 하나씩 그려짐 → ④ 결과 안내
   function playReveal() {
     const { svg, wr } = matchSizeSvg(wrap);
     const color = matchLineColor(), wrong = matchWrongColor();
     const n = wrap.querySelectorAll(".match-left").length;
-    const CHECK = "M-6 0 L-2 5 L6 -5", CROSS = "M-5 -5 L5 5 M5 -5 L-5 5";
+    const CROSS = "M-5 -5 L5 5 M5 -5 L-5 5";
     const badge = (p, fill, mark, delay, extra) => {
       const mx = (p.x1 + p.x2) / 2, my = (p.y1 + p.y2) / 2;
       return `<g transform="translate(${mx},${my})"><g style="transform-box:fill-box;transform-origin:center;animation:badge-pop .45s cubic-bezier(.3,1.6,.5,1) ${delay}s backwards${extra || ""}"><circle r="15" fill="${fill}" stroke="#fff" stroke-width="3"/><path d="${mark}" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g></g>`;
@@ -638,7 +642,6 @@ function setupMatch(card) {
       const p = matchPts(wr, L(i), R(i));
       okCount++;
       lines += matchLineTag(p, color, `style="animation:match-confirm .6s ease ${t}s"`);
-      badges += badge(p, color, CHECK, t);
       Sfx.play("connect", t); pop(i, t + 0.05);
       t += 0.3;
     });
