@@ -94,7 +94,7 @@ button:active { transform: scale(0.98); }
 
 .btn-primary, .btn-gold, .btn-mint { background: var(--btn-accent); color: var(--text-main); font-weight: 700; }
 .btn-danger { background: var(--accent-red); color: var(--accent-red-dark); font-weight: 700; }
-.btn-ghost { background: transparent; border: 1px solid var(--border-strong); }
+.btn-ghost { background: transparent; border: 2px solid var(--border-strong); }
 
 /* ---------- 예쁜 라디오 버튼 ---------- */
 input[type=radio] {
@@ -147,8 +147,8 @@ label.field-label { display: block; font-size: 13px; color: var(--text-muted); m
 .set-list { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
 .set-card {
   background: var(--bg-card);
-  border: 1px solid var(--border-soft);
-  border-radius: 16px;
+  border: 3px solid var(--border-strong);
+  border-radius: 20px;
   padding: 16px 18px;
   display: flex;
   align-items: center;
@@ -156,7 +156,7 @@ label.field-label { display: block; font-size: 13px; color: var(--text-muted); m
   gap: 12px;
   cursor: var(--cursor-pointer);
 }
-.set-card:hover { border-color: var(--border-strong); }
+.set-card:hover { border-color: var(--btn-accent); }
 .set-card .set-title { font-family: var(--font-question); font-weight: 700; font-size: 17px; }
 .set-card .set-meta { color: var(--text-faint); font-size: 12px; margin-top: 4px; }
 .set-card .set-actions { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -184,7 +184,7 @@ label.field-label { display: block; font-size: 13px; color: var(--text-muted); m
 .img-preview { max-width: 100%; max-height: 160px; border-radius: 10px; margin-top: 8px; display: block; }
 .top-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
 .tab-bar { display: flex; gap: 10px; margin-bottom: 22px; }
-.tab-btn { flex: 1; padding: 12px; border-radius: 14px; background: var(--bg-card-alt); border: 1px solid var(--border-soft); font-weight: 700; }
+.tab-btn { flex: 1; padding: 12px; border-radius: 14px; background: var(--bg-card-alt); border: 3px solid var(--border-soft); font-weight: 700; }
 .tab-btn.active { background: var(--btn-accent); color: var(--text-main); border-color: transparent; }
 .tab-panel.hidden { display: none; }
 .font-preset-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border: 1px solid var(--border-soft); border-radius: 10px; margin-bottom: 6px; }
@@ -207,7 +207,7 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
   max-width: 720px;
   margin-top: 90px;
 }
-.question-card { text-align: center; padding: 40px 30px; }
+.question-card { text-align: center; padding: 40px 30px; border-width: 3px; border-radius: 24px; }
 .question-card .question-text {
   font-family: var(--font-question);
   font-size: var(--font-size-question); font-weight: 400; margin: 10px 0 24px; line-height: 1.5;
@@ -216,7 +216,7 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
 
 .choice-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .choice-display {
-  padding: 14px; border-radius: 12px; border: 1.5px solid var(--border-soft);
+  padding: 14px; border-radius: 18px; border: 4px solid var(--btn-accent);
   font-family: var(--font-choice); font-size: var(--font-size-choice); text-align: left; cursor: var(--cursor-pointer);
   transition: border-color .15s, background .15s, transform .12s, box-shadow .15s;
 }
@@ -226,13 +226,13 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(36,27,61,0.08);
 }
-.choice-display.correct { border-color: var(--btn-accent); background: var(--btn-accent-tint-35); font-weight: 700; }
+.choice-display.correct { border-color: var(--btn-accent); background: var(--btn-accent); font-weight: 700; }
 
 .ox-row { display: flex; gap: 20px; justify-content: center; margin-top: 20px; }
 .ox-box {
-  width: 100px; height: 100px; border-radius: 20px;
+  width: 110px; height: 110px; border-radius: 28px;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-choice); font-size: 40px; font-weight: 900; border: 2px solid var(--border-soft);
+  font-family: var(--font-choice); font-size: 40px; font-weight: 900; border: 6px solid var(--btn-accent);
   cursor: var(--cursor-pointer); transition: border-color .15s, background .15s, transform .12s, box-shadow .15s;
 }
 .ox-box:hover {
@@ -241,27 +241,27 @@ input[type=color] { width: 44px; height: 32px; border: none; border-radius: 8px;
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(36,27,61,0.08);
 }
-.ox-box.correct { border-color: var(--btn-accent); background: var(--btn-accent-tint-35); color: var(--text-main); }
+.ox-box.correct { border-color: var(--btn-accent); background: var(--btn-accent); color: var(--text-main); }
 
 .short-answer-display {
   font-family: var(--font-choice);
   font-size: 34px; font-weight: 800; text-align: center;
   padding: 22px; border-radius: 16px; margin: 22px 0 0;
-  border: 2px solid var(--btn-accent);
+  border: 4px solid var(--btn-accent);
   background: var(--btn-accent-tint-25);
   color: var(--text-main);
 }
 
 .hint-box {
   margin-top: 16px; padding: 16px; border-radius: 12px;
-  border: 1.5px dashed var(--border-strong);
+  border: 3px dashed var(--border-strong);
   font-family: var(--font-choice); font-size: var(--font-size-choice);
   color: var(--text-muted); text-align: center;
 }
 
 .answer-box {
   margin-top: 24px; padding: 10px 14px; border-radius: 12px;
-  border: 1.5px solid var(--border-soft);
+  border: 3px solid var(--border-soft);
   background: var(--bg-card-alt); text-align: left;
   font-family: var(--font-choice);
 }
@@ -509,3 +509,30 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 }
 #fx-glow.on { opacity: 1; }
 .fx-star { position: fixed; pointer-events: none; z-index: 9995; will-change: transform, opacity; }
+
+/* =========================================================
+   [추가] 힌트 아이콘(카드 오른쪽 위) / 정답보기·다음 버튼 / 진행 표시
+========================================================= */
+#question-capture { position: relative; }
+.hint-icon {
+  position: absolute; top: 12px; right: 12px; z-index: 2; width: 34px; height: 34px; padding: 0;
+  border-radius: 50%; background: transparent; color: var(--text-faint);
+  display: flex; align-items: center; justify-content: center; transition: background .2s, color .2s;
+}
+.hint-icon:hover { background: var(--btn-accent-tint-35); color: var(--text-muted); filter: none; }
+.hint-icon.used { color: var(--text-muted); }
+
+/* 정답 보기 / 다음 문제: 굵은 테두리 + 아래로 두툼한 그림자 (누르면 푹 눌림) */
+.bottom-actions button.btn-block {
+  --btn-edge: #897CA8;
+  --btn-edge: color-mix(in srgb, var(--btn-accent) 55%, var(--text-main));
+  padding: 16px 18px; font-size: 17px; border-radius: 16px;
+  border: 3px solid var(--btn-edge);
+  box-shadow: 0 5px 0 var(--btn-edge), 0 12px 20px rgba(36,27,61,0.12);
+  transition: transform .1s, box-shadow .1s;
+}
+.bottom-actions button.btn-block:hover { filter: none; transform: translateY(-1px); box-shadow: 0 6px 0 var(--btn-edge), 0 14px 22px rgba(36,27,61,0.14); }
+.bottom-actions button.btn-block:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--btn-edge), 0 4px 8px rgba(36,27,61,0.10); }
+
+.progress-text { cursor: var(--cursor-pointer); padding: 4px 10px; border-radius: 999px; transition: background .2s; }
+.progress-text:hover { background: var(--btn-accent-tint-35); }

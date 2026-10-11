@@ -20,7 +20,7 @@
 <!-- ===== 발표 화면 ===== -->
 <div id="view-present" class="view hidden">
   <div class="present-topbar">
-    <div class="progress-text" id="progress-text">1 / 5</div>
+    <div class="progress-text" id="progress-text" title="문제 이동">1 / 5</div>
     <div class="top-btns">
       <button class="btn-ghost btn-sm" id="btn-jump">문제 이동</button>
       <button class="btn-ghost btn-sm" id="btn-restart">처음부터</button>
@@ -32,9 +32,9 @@
   <div id="jump-panel" class="jump-panel hidden"></div>
 
   <div id="question-capture">
+    <button class="hint-icon hidden" id="btn-hint" title="힌트 보기" aria-label="힌트 보기"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.7.6 1.1 1.4 1.1 2.1h4.8c0-.7.4-1.5 1.1-2.1A6 6 0 0 0 12 3z"/></svg></button>
     <div class="card question-card" id="question-card"></div>
     <div class="bottom-actions">
-      <button class="btn-ghost hidden" id="btn-hint">힌트 보기</button>
       <button class="btn-gold btn-block" id="btn-reveal">정답 보기</button>
       <button class="btn-primary btn-block hidden" id="btn-next">다음 문제 →</button>
     </div>
@@ -60,17 +60,23 @@ let revealed = false;
   document.getElementById("btn-exit").addEventListener("click", exitToList);
   document.getElementById("btn-fullscreen").addEventListener("click", toggleFullscreen);
   document.getElementById("btn-jump").addEventListener("click", toggleJump);
+  document.getElementById("progress-text").addEventListener("click", toggleJump);
   document.getElementById("btn-hint").addEventListener("click", () => { hintStage[curIdx] = (hintStage[curIdx] || 0) + 1; renderQuestion(true); });
   document.getElementById("jump-panel").addEventListener("click", (e) => {
     const b = e.target.closest("[data-jump]");
     if (!b) return;
     curIdx = Number(b.dataset.jump); revealed = false; closeJump(); renderQuestion();
   });
-  document.addEventListener("click", (e) => { if (!e.target.closest("#jump-panel, #btn-jump")) closeJump(); });
+  document.addEventListener("click", (e) => { if (!e.target.closest("#jump-panel, #btn-jump, #progress-text")) closeJump(); });
 
   document.addEventListener("keydown", (e) => {
     if (document.getElementById("view-present").classList.contains("hidden")) return;
     if (!document.getElementById("jump-panel").classList.contains("hidden")) { if (e.code === "Escape") closeJump(); return; }
+    if (/^Digit[1-9]$/.test(e.code)) {   // 숫자 키 1~9: 해당 번호 문제로 바로 이동
+      const n = Number(e.code.slice(5)) - 1;
+      if (n < currentSet.questions.length) { curIdx = n; revealed = false; renderQuestion(); }
+      return;
+    }
     if (e.code === "Space") { e.preventDefault(); revealed ? nextQuestion() : reveal(); }
     if (e.code === "ArrowRight") nextQuestion();
     if (e.code === "ArrowLeft") prevQuestion();
@@ -150,9 +156,7 @@ function reveal() { revealed = true; renderQuestion(); }
 function nextQuestion() {
   if (curIdx < currentSet.questions.length - 1) {
     curIdx++; revealed = false; renderQuestion();
-  } else {
-    exitToList();
-  }
+  }  // 마지막 문제에서는 종료하지 않고 그대로 남아 있음
 }
 function prevQuestion() {
   if (curIdx > 0) { curIdx--; revealed = false; renderQuestion(); }
@@ -319,8 +323,9 @@ function renderQuestion(noEnter) {
   const stage = hintStage[curIdx] || 0;
   const hintBtn = document.getElementById("btn-hint");
   hintBtn.classList.toggle("hidden", revealed || q.type !== "short" || !(q.answer || "").trim() || stage >= 2);
-  hintBtn.innerText = stage === 0 ? "힌트 보기" : "힌트 더 보기";
-  document.getElementById("btn-next").classList.toggle("hidden", !revealed);
+  hintBtn.title = stage === 0 ? "힌트 보기" : "힌트 더 보기";
+  hintBtn.classList.toggle("used", stage > 0);
+  document.getElementById("btn-next").classList.toggle("hidden", !revealed || curIdx >= currentSet.questions.length - 1);
 
   let html = "";
   if (q.image) html += `<img class="q-image" src="${q.image}" crossorigin="anonymous">`;
