@@ -42,6 +42,7 @@
 </div>
 
 <div id="offline-badge" class="offline-badge hidden">오프라인 캐시로 표시 중</div>
+<button id="sfx-toggle" class="sfx-toggle" title="효과음 켜기/끄기" aria-label="효과음 켜기/끄기"></button>
 
 <script>
 let sets = [];
@@ -61,11 +62,11 @@ let revealed = false;
   document.getElementById("btn-fullscreen").addEventListener("click", toggleFullscreen);
   document.getElementById("btn-jump").addEventListener("click", toggleJump);
   document.getElementById("progress-text").addEventListener("click", toggleJump);
-  document.getElementById("btn-hint").addEventListener("click", () => { hintStage[curIdx] = (hintStage[curIdx] || 0) + 1; renderQuestion(true); });
+  document.getElementById("btn-hint").addEventListener("click", () => { Sfx.play("hint"); hintStage[curIdx] = (hintStage[curIdx] || 0) + 1; renderQuestion(true); });
   document.getElementById("jump-panel").addEventListener("click", (e) => {
     const b = e.target.closest("[data-jump]");
     if (!b) return;
-    curIdx = Number(b.dataset.jump); revealed = false; closeJump(); renderQuestion();
+    Sfx.play("next"); curIdx = Number(b.dataset.jump); revealed = false; closeJump(); renderQuestion();
   });
   document.addEventListener("click", (e) => { if (!e.target.closest("#jump-panel, #btn-jump, #progress-text")) closeJump(); });
 
@@ -74,7 +75,7 @@ let revealed = false;
     if (!document.getElementById("jump-panel").classList.contains("hidden")) { if (e.code === "Escape") closeJump(); return; }
     if (/^Digit[1-9]$/.test(e.code)) {   // 숫자 키 1~9: 해당 번호 문제로 바로 이동
       const n = Number(e.code.slice(5)) - 1;
-      if (n < currentSet.questions.length) { curIdx = n; revealed = false; renderQuestion(); }
+      if (n < currentSet.questions.length) { Sfx.play("next"); curIdx = n; revealed = false; renderQuestion(); }
       return;
     }
     if (e.code === "Space") { e.preventDefault(); revealed ? nextQuestion() : reveal(); }
@@ -151,16 +152,62 @@ function exitToList() {
   loadSetList();
 }
 
-function reveal() { revealed = true; renderQuestion(); }
+function reveal() { const t = currentSet.questions[curIdx].type; if (t !== "match" && t !== "blank") Sfx.play("ding"); revealed = true; renderQuestion(); }
 
 function nextQuestion() {
   if (curIdx < currentSet.questions.length - 1) {
-    curIdx++; revealed = false; renderQuestion();
+    Sfx.play("next"); curIdx++; revealed = false; renderQuestion();
   }  // 마지막 문제에서는 종료하지 않고 그대로 남아 있음
 }
 function prevQuestion() {
-  if (curIdx > 0) { curIdx--; revealed = false; renderQuestion(); }
+  if (curIdx > 0) { Sfx.play("next"); curIdx--; revealed = false; renderQuestion(); }
 }
+
+// ---------- 효과음 (파일 없이 브라우저에서 직접 만들어 재생) ----------
+const Sfx = (() => {
+  let ctx = null, muted = false;
+  try { muted = localStorage.getItem("quiz_muted") === "1"; } catch (e) {}
+  const get = () => {
+    if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; ctx = new AC(); }
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  };
+  const tone = (c, freq, t0, dur, vol, type, to) => {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type || "sine";
+    o.frequency.setValueAtTime(freq, t0);
+    if (to) o.frequency.exponentialRampToValueAtTime(to, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  };
+  const SOUNDS = {
+    tick:    (c, t) => tone(c, 1500 + Math.random() * 700, t, 0.06, 0.035),                 // 클릭 별가루
+    ding:    (c, t) => { [1047, 1319, 1568].forEach((f, i) => tone(c, f, t + i * 0.09, 0.4, 0.09)); }, // 정답 공개
+    ping:    (c, t) => tone(c, 1175, t, 0.28, 0.08),                                         // 빈칸/정답선이 하나씩 열릴 때
+    connect: (c, t) => { tone(c, 880, t, 0.12, 0.09); tone(c, 1320, t + 0.07, 0.18, 0.08); }, // 선 연결
+    unlink:  (c, t) => tone(c, 420, t, 0.12, 0.07, "sine", 260),                             // 연결 해제 / 틀린 선 사라짐
+    swap:    (c, t) => tone(c, 340, t, 0.1, 0.1, "triangle", 220),                           // 카드 자리 바꿈 / 상자에 넣기
+    next:    (c, t) => tone(c, 520, t, 0.1, 0.06, "sine", 780),                              // 문제 이동
+    hint:    (c, t) => { tone(c, 784, t, 0.12, 0.07); tone(c, 988, t + 0.08, 0.16, 0.07); }  // 힌트
+  };
+  return {
+    play(name, delay) { if (muted || !SOUNDS[name]) return; const c = get(); if (c) SOUNDS[name](c, c.currentTime + (delay || 0)); },
+    get muted() { return muted; },
+    toggle() { muted = !muted; try { localStorage.setItem("quiz_muted", muted ? "1" : "0"); } catch (e) {} return muted; }
+  };
+})();
+(function initSfxToggle() {
+  const btn = document.getElementById("sfx-toggle");
+  const base = 'viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  const ON = `<svg ${base}><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>`;
+  const OFF = `<svg ${base}><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M22 9l-6 6"/><path d="M16 9l6 6"/></svg>`;
+  const paint = () => { btn.innerHTML = Sfx.muted ? OFF : ON; btn.classList.toggle("off", Sfx.muted); };
+  btn.addEventListener("click", () => { Sfx.toggle(); paint(); Sfx.play("ding"); });
+  paint();
+})();
 
 // ---------- 상태 / 애니메이션 도우미 ----------
 let orderState = {}, sortState = {}, blankOpen = {}, hintStage = {};
@@ -219,7 +266,7 @@ function setupOrder(card) {
     flipPlay(area, before, done ? 70 : 0);
   };
   if (revealed) { order = orderState[curIdx] = q.items.map((_, i) => i); render(true); return; }
-  const swap = (a, b) => { const x = order.indexOf(a), y = order.indexOf(b); [order[x], order[y]] = [order[y], order[x]]; };
+  const swap = (a, b) => { Sfx.play("swap"); const x = order.indexOf(a), y = order.indexOf(b); [order[x], order[y]] = [order[y], order[x]]; };
   const hitCard = e => { const h = document.elementFromPoint(e.clientX, e.clientY), s = h && h.closest(".order-slot"); return s ? s.querySelector(".order-card") : null; };
   // 클릭 두 번(선택 → 다른 카드)으로 자리 바꾸기 / 카드를 끌어서 다른 카드 위에 놓아 자리 바꾸기
   wrap.addEventListener("pointerdown", e => {
@@ -273,7 +320,7 @@ function setupSort(card) {
     flipPlay(area, before, stagger || 0);
   };
   if (revealed) { items.forEach((it, i) => { assign[i] = it.g; }); render(true, 70); return; }
-  const place = (i, g) => { assign[i] = g; sel = null; render(false); };
+  const place = (i, g) => { Sfx.play("swap"); assign[i] = g; sel = null; render(false); };
   const binAt = e => { const h = document.elementFromPoint(e.clientX, e.clientY); return h ? h.closest(".sort-bin") : null; };
   // 카드를 끌어서 분류 상자에 놓기 / 카드 클릭 → 상자 클릭 / 상자 안 카드를 누르면 되돌리기
   wrap.addEventListener("pointerdown", e => {
@@ -312,7 +359,7 @@ function setupBlank(card) {
   const bl = card.querySelectorAll(".blank");
   if (!bl.length) return;
   const set = (blankOpen[curIdx] = blankOpen[curIdx] || new Set());
-  if (revealed) { bl.forEach(b => set.add(Number(b.dataset.b))); return; }
+  if (revealed) { bl.forEach(b => { set.add(Number(b.dataset.b)); if (b.classList.contains("anim")) Sfx.play("ping", parseFloat(b.style.getPropertyValue("--d")) || 0); }); return; }
   // 문제 화면에서는 빈칸이 닫힌 채로 있고, 정답 보기를 누르면 차례로 열려요
 }
 
@@ -580,12 +627,13 @@ function setupMatch(card) {
     let html = "", delay = 0.1;
     const bad = Object.entries(links).filter(([li, rp]) => Number(li) !== rp);
     bad.forEach(([li, rp]) => { html += matchLineTag(matchPts(wr, L(li), R(rp)), wrong, 'style="animation:match-fade .7s ease .5s forwards"'); });
-    if (bad.length) delay = 1.0;
+    if (bad.length) { delay = 1.0; Sfx.play("unlink", 0.5); }
     wrap.querySelectorAll(".match-left").forEach(l => {
       const i = Number(l.dataset.pair), p = matchPts(wr, l, R(i));
       if (links[i] === i) { html += matchLineTag(p, color); return; }
       const len = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
       html += matchLineTag(p, color, `style="stroke-dasharray:${len};stroke-dashoffset:${len};animation:match-draw .5s ease ${delay}s forwards"`);
+      Sfx.play("ping", delay);
       delay += 0.5;
     });
     svg.innerHTML = html;
@@ -598,12 +646,14 @@ function setupMatch(card) {
     Object.keys(links).forEach(k => { if (links[k] === rp) delete links[k]; });
     links[Number(l.dataset.pair)] = rp;
     fresh = Number(l.dataset.pair); pops = [l, r];
+    Sfx.play("connect");
   }
   function isLinked(el) {
     const p = Number(el.dataset.pair);
     return el.dataset.side === "L" ? p in links : Object.values(links).includes(p);
   }
   function unlink(el) {
+    Sfx.play("unlink");
     const p = Number(el.dataset.pair);
     if (el.dataset.side === "L") delete links[p];
     else Object.keys(links).forEach(k => { if (links[k] === p) delete links[k]; });
@@ -697,6 +747,7 @@ function fmtDate(iso) {
   ];
   const pick = a => a[Math.floor(Math.random() * a.length)];
   window.addEventListener("pointerdown", e => {
+    if (typeof Sfx !== "undefined") Sfx.play("tick");
     const colors = themeColors();
     for (let i = 0; i < 9; i++) {
       const el = document.createElement("div");

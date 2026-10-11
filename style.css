@@ -535,3 +535,12 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 
 .progress-text { cursor: var(--cursor-pointer); padding: 4px 10px; border-radius: 999px; transition: background .2s; }
 .progress-text:hover { background: var(--btn-accent-tint-35); }
+
+/* ---------- [추가] 효과음 켜기/끄기 버튼 ---------- */
+.sfx-toggle {
+  position: fixed; right: 16px; bottom: 16px; z-index: 30; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  background: var(--bg-card); border: 2px solid var(--border-strong); color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; opacity: .75; transition: opacity .2s;
+}
+.sfx-toggle:hover { opacity: 1; filter: none; }
+.sfx-toggle.off { color: var(--text-faint); }
