@@ -544,3 +544,15 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 }
 .sfx-toggle:hover { opacity: 1; filter: none; }
 .sfx-toggle.off { color: var(--text-faint); }
+
+/* ---------- [추가] 연결형 정답 공개 연출 ---------- */
+@keyframes badge-pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+@keyframes match-confirm { 0%, 100% { stroke-width: 5; } 40% { stroke-width: 12; } }
+@keyframes match-wrong { 0% { stroke: var(--from); } 25%, 70% { stroke: var(--to); } 100% { stroke: var(--to); opacity: 0; } }
+@keyframes item-bounce { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.05); } }
+.match-item.bounce { animation: item-bounce .45s ease; }
+.match-result {
+  display: block; width: fit-content; margin: 18px auto 0; padding: 8px 22px; border-radius: 999px;
+  background: var(--btn-accent); font-family: var(--font-choice); font-weight: 700;
+  animation: pop-soft .5s ease backwards;
+}

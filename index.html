@@ -620,24 +620,55 @@ function setupMatch(card) {
     svg.innerHTML = html;
   }
 
-  // 정답 공개: 틀린 선은 붉게 변했다 사라지고, 빠진 정답선은 하나씩 그려짐
+  // 정답 공개: ① 맞게 이은 선은 굵어지며 ✓ 배지 → ② 틀린 선은 붉어지며 ✕ 하고 사라짐 → ③ 빠진 정답선은 하나씩 그려짐 → ④ 결과 안내
   function playReveal() {
     const { svg, wr } = matchSizeSvg(wrap);
     const color = matchLineColor(), wrong = matchWrongColor();
-    let html = "", delay = 0.1;
-    const bad = Object.entries(links).filter(([li, rp]) => Number(li) !== rp);
-    bad.forEach(([li, rp]) => { html += matchLineTag(matchPts(wr, L(li), R(rp)), wrong, 'style="animation:match-fade .7s ease .5s forwards"'); });
-    if (bad.length) { delay = 1.0; Sfx.play("unlink", 0.5); }
-    wrap.querySelectorAll(".match-left").forEach(l => {
-      const i = Number(l.dataset.pair), p = matchPts(wr, l, R(i));
-      if (links[i] === i) { html += matchLineTag(p, color); return; }
-      const len = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
-      html += matchLineTag(p, color, `style="stroke-dasharray:${len};stroke-dashoffset:${len};animation:match-draw .5s ease ${delay}s forwards"`);
-      Sfx.play("ping", delay);
-      delay += 0.5;
+    const n = wrap.querySelectorAll(".match-left").length;
+    const CHECK = "M-6 0 L-2 5 L6 -5", CROSS = "M-5 -5 L5 5 M5 -5 L-5 5";
+    const badge = (p, fill, mark, delay, extra) => {
+      const mx = (p.x1 + p.x2) / 2, my = (p.y1 + p.y2) / 2;
+      return `<g transform="translate(${mx},${my})"><g style="transform-box:fill-box;transform-origin:center;animation:badge-pop .45s cubic-bezier(.3,1.6,.5,1) ${delay}s backwards${extra || ""}"><circle r="15" fill="${fill}" stroke="#fff" stroke-width="3"/><path d="${mark}" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g></g>`;
+    };
+    const pop = (i, sec) => setTimeout(() => [L(i), R(i)].forEach(el => el && el.classList.add("correct", "linked", "bounce")), sec * 1000);
+    let lines = "", badges = "", t = 0.15, okCount = 0;
+    const entries = Object.entries(links).map(([li, rp]) => [Number(li), rp]);
+    const good = entries.filter(([li, rp]) => li === rp), bad = entries.filter(([li, rp]) => li !== rp);
+    good.forEach(([i]) => {   // ① 맞게 이은 선
+      const p = matchPts(wr, L(i), R(i));
+      okCount++;
+      lines += matchLineTag(p, color, `style="animation:match-confirm .6s ease ${t}s"`);
+      badges += badge(p, color, CHECK, t);
+      Sfx.play("connect", t); pop(i, t + 0.05);
+      t += 0.3;
     });
-    svg.innerHTML = html;
-    setTimeout(() => items().forEach(el => el.classList.add("correct", "linked")), (delay + 0.1) * 1000);
+    if (bad.length) {         // ② 틀린 선
+      t += 0.1;
+      bad.forEach(([li, rp]) => {
+        const p = matchPts(wr, L(li), R(rp));
+        lines += matchLineTag(p, color, `style="--from:${color};--to:${wrong};animation:match-wrong 1.1s ease ${t}s forwards"`);
+        badges += badge(p, wrong, CROSS, t, `,match-fade .5s ease ${t + 0.7}s forwards`);
+      });
+      Sfx.play("unlink", t);
+      t += 1.1;
+    }
+    wrap.querySelectorAll(".match-left").forEach(l => {   // ③ 빠진 정답선
+      const i = Number(l.dataset.pair);
+      if (links[i] === i) return;
+      const p = matchPts(wr, l, R(i)), len = Math.hypot(p.x2 - p.x1, p.y2 - p.y1);
+      lines += matchLineTag(p, color, `style="stroke-dasharray:${len};stroke-dashoffset:${len};animation:match-draw .5s ease ${t}s forwards"`);
+      Sfx.play("ping", t); pop(i, t + 0.5);
+      t += 0.5;
+    });
+    svg.innerHTML = lines + badges;
+    if (entries.length) {     // ④ 결과 안내 (직접 이은 선이 있을 때만)
+      const msg = document.createElement("div");
+      msg.className = "match-result";
+      msg.style.animationDelay = (t + 0.1) + "s";
+      msg.textContent = okCount === n ? "모두 맞았어요!" : `${n}개 중 ${okCount}개 맞았어요`;
+      wrap.insertAdjacentElement("afterend", msg);
+      if (okCount === n) Sfx.play("ding", t + 0.1);
+    }
   }
 
   function connect(a, b) {
