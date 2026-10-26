@@ -488,7 +488,7 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 .sort-bin.drop-target { background: var(--btn-accent-tint-35); border-style: solid; }
 .sort-wrap.has-sel .sort-bin { animation: dot-ping 1.4s ease-out infinite; }
 .sort-bin-name {
-  display: inline-block; background: var(--btn-accent); border-radius: 999px; padding: 6px 20px; margin-bottom: 10px;
+  display: block; text-align: center; background: var(--btn-accent); border-radius: 18px; padding: 8px 14px; margin-bottom: 10px;
   font-weight: 700; font-family: var(--font-choice); font-size: calc(var(--font-size-choice) * 1.45);
 }
 .sort-bin-body { display: flex; flex-direction: column; gap: 6px; align-items: center; }

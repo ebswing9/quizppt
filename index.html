@@ -485,7 +485,7 @@ function sortInner(q, assign, poolOrder, done) {
   const card = i => `<div class="sort-card${done ? " correct" : ""}" data-flip="s${i}" data-item="${i}"><span class="item-text">${escapeHtml(items[i].text)}</span></div>`;
   const pool = poolOrder.filter(i => !(assign[i] >= 0)).map(card).join("");
   const bins = (q.groups || []).map((g, gi) => `<div class="sort-bin" data-group="${gi}"><div class="sort-bin-name item-text">${escapeHtml(g.name)}</div><div class="sort-bin-body">${poolOrder.filter(i => assign[i] === gi).map(card).join("")}</div></div>`).join("");
-  return `<div class="sort-pool">${pool}</div><div class="sort-bins" style="grid-template-columns:repeat(${(q.groups || []).length},1fr)">${bins}</div>`;
+  return `<div class="sort-pool">${pool}</div><div class="sort-bins" style="grid-template-columns:repeat(${(q.groups || []).length},minmax(0,1fr))">${bins}</div>`;
 }
 function sortHtml(q, revealed) {
   const assign = {};
