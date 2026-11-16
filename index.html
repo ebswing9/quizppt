@@ -747,6 +747,62 @@ function fmtDate(iso) {
 }
 </script>
 <script>
+// ---------- 테마색에서 파생되는 색(테두리, 글자색, 그림자, 배경 빛, 커서)을 자동 계산 ----------
+(function initThemeDerived() {
+  const DEFAULT_KEY = "220,203,255";   // style.css 기본 테마(연보라) — 이 색이면 원래 값을 그대로 사용
+  const NAMES = ["--text-main", "--text-muted", "--text-faint", "--border-soft", "--border-strong", "--bg-card-alt", "--shadow-rgb", "--blob-a", "--blob-b", "--blob-c", "--cursor-default", "--cursor-pointer"];
+  const hexRgb = v => { const m = /^#?([0-9a-f]{6})$/i.exec((v || "").trim()); return m ? [0, 2, 4].map(i => parseInt(m[1].substr(i, 2), 16)) : null; };
+  const toHex = rgb => "#" + rgb.map(v => v.toString(16).padStart(2, "0")).join("");
+  const rgbToHsl = ([r, g, b]) => {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+    if (!d) return [0, 0, l];
+    const s = d / (1 - Math.abs(2 * l - 1));
+    const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [(h * 60 + 360) % 360, s, l];
+  };
+  const hslToRgb = (h, s, l) => {
+    h = ((h % 360) + 360) % 360;
+    const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+    const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+    return [r, g, b].map(v => Math.round((v + m) * 255));
+  };
+  let lastKey = "";
+  function apply() {
+    const a = hexRgb(getComputedStyle(document.body).getPropertyValue("--btn-accent"));
+    if (!a) return;
+    const key = a.join(",");
+    if (key === lastKey) return;      // 테마색이 그대로면 다시 계산하지 않음
+    lastKey = key;
+    const root = document.documentElement.style;
+    if (key === DEFAULT_KEY) { NAMES.forEach(n => root.removeProperty(n)); return; }
+    const [h, s0] = rgbToHsl(a);
+    const k = Math.min(1, 0.35 + s0);                       // 테마색이 거의 무채색이면 파생색도 차분하게
+    const hx = (s, l) => toHex(hslToRgb(h, s * k, l));
+    const rgba = (hh, s, l, al) => `rgba(${hslToRgb(hh, s * k, l).join(",")},${al})`;
+    const set = (n, v) => root.setProperty(n, v);
+    set("--text-main", hx(0.35, 0.17));
+    set("--text-muted", hx(0.15, 0.45));
+    set("--text-faint", hx(0.28, 0.70));
+    set("--border-soft", hx(0.60, 0.91));
+    set("--border-strong", hx(0.65, 0.82));
+    set("--bg-card-alt", hx(0.80, 0.97));
+    set("--shadow-rgb", hslToRgb(h, 0.40 * k, 0.16).join(","));
+    set("--blob-a", rgba(h - 35, 0.9, 0.65, 0.14));
+    set("--blob-b", rgba(h, 0.8, 0.80, 0.14));
+    set("--blob-c", rgba(h + 45, 0.7, 0.55, 0.10));
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><path d='M4 2.7 L4 17 L7.8 13.6 L10.5 19.4 L13.3 18.2 L10.7 12.5 L15.6 12.2 Z' fill='${toHex(a)}' stroke='${hx(0.15, 0.45)}' stroke-width='1.6' stroke-linejoin='round'/></svg>`;
+    const enc = svg.replace(/</g, "%3C").replace(/>/g, "%3E").replace(/#/g, "%23");
+    set("--cursor-default", `url("data:image/svg+xml,${enc}") 4 3, auto`);
+    set("--cursor-pointer", `url("data:image/svg+xml,${enc}") 4 3, pointer`);
+  }
+  const obs = new MutationObserver(apply);
+  obs.observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
+  obs.observe(document.body, { attributes: true, attributeFilter: ["style"] });
+  setInterval(apply, 800);          // 테마색이 다른 방식으로 바뀌어도 놓치지 않도록
+  apply();
+})();
+
 // ---------- 마우스 효과: 커서를 따라다니는 빛 + 클릭 별가루 ----------
 (function initPointerFx() {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
