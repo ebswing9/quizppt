@@ -556,3 +556,16 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
   background: var(--btn-accent); font-family: var(--font-choice); font-weight: 700;
   animation: pop-soft .5s ease backwards;
 }
+
+/* ---------- [추가] 문제 순서 드래그 앤 드롭 (관리자) ---------- */
+.q-editor-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.drag-handle {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  border-radius: 8px; color: var(--text-faint); cursor: var(--cursor-pointer); touch-action: none; transition: background .2s, color .2s;
+}
+.drag-handle:hover { background: var(--bg-card-alt); color: var(--text-muted); }
+#questions-wrap.is-dragging { user-select: none; }
+#questions-wrap.is-dragging .q-editor-body { display: none; }
+.q-editor-item.dragging-item { position: relative; z-index: 10; background: var(--bg-card); box-shadow: 0 12px 28px rgba(36,27,61,0.2); }
+.q-editor-item.drop-before { box-shadow: 0 -6px 0 0 var(--btn-accent); }
+.q-editor-item.drop-after { box-shadow: 0 6px 0 0 var(--btn-accent); }
