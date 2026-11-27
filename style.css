@@ -569,3 +569,12 @@ a, select, input[type=file], input[type=color], label.type-radio { cursor: var(-
 .q-editor-item.dragging-item { position: relative; z-index: 10; background: var(--bg-card); box-shadow: 0 12px 28px rgba(var(--shadow-rgb, 36, 27, 61),0.2); }
 .q-editor-item.drop-before { box-shadow: 0 -6px 0 0 var(--btn-accent); }
 .q-editor-item.drop-after { box-shadow: 0 6px 0 0 var(--btn-accent); }
+
+/* ---------- [추가] 문제 순서 선택 (원래 순서 / 랜덤 순서) ---------- */
+.order-toggle {
+  display: flex; width: fit-content; margin: 0 auto 8px; border: 3px solid var(--btn-accent);
+  border-radius: 999px; overflow: hidden; background: var(--bg-card);
+}
+.order-toggle button { border-radius: 0; background: transparent; padding: 8px 20px; font-size: 14px; font-weight: 700; color: var(--text-muted); }
+.order-toggle button:hover { filter: none; background: var(--btn-accent-tint-35); }
+.order-toggle button.active { background: var(--btn-accent); color: var(--text-main); }
